@@ -55,6 +55,16 @@ model User {
   createdAt    DateTime @default(now())
 }
 
+model Activity {
+  id        String   @id @default(cuid())
+  actor     String   // name (or email) of the user who did it
+  action    String   // short description, e.g. "Logged contact" or "Moved to Sold"
+  entity    String?  // what it acted on, e.g. the project or user name
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model Contractor {
   id        String    @id @default(cuid())
   name      String    @unique

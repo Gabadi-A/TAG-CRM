@@ -5,15 +5,16 @@ import { usePathname } from "next/navigation";
 import Logo from "./Logo";
 import { doSignOut } from "@/lib/actions/session";
 
-const LINKS = [
-  ["/dashboard", "Dashboard"],
-  ["/quotes", "Quotes"],
-  ["/projects", "Opportunities"],
-  ["/contractors", "Contractors"],
-  ["/follow-ups", "Follow-ups"],
-];
-
-export default function TopNav({ name }: { name?: string | null }) {
+export default function TopNav({ name, isAdmin }: { name?: string | null; isAdmin?: boolean }) {
+  const LINKS: [string, string][] = [
+    ["/dashboard", "Dashboard"],
+    ["/quotes", "Quotes"],
+    ["/projects", "Opportunities"],
+    ["/contractors", "Contractors"],
+    ["/follow-ups", "Follow-ups"],
+    ["/activity", "Activity"],
+    ...(isAdmin ? ([["/team", "Team"]] as [string, string][]) : []),
+  ];
   const path = usePathname();
   const initials = (name || "U")
     .split(" ")

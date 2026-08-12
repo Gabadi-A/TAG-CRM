@@ -78,6 +78,8 @@ tbody tr:hover{background:var(--cream);cursor:pointer}
 .btn:hover{background:var(--brand-dk)}
 .btn.ghost{background:var(--paper);color:var(--brand);border:1px solid var(--line-2)}
 .btn.ghost:hover{background:var(--tan-lt)}
+.danger-btn{background:#fff;border:1px solid #e6b3b3;color:#a52222;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block}
+.danger-btn:hover{background:#fbe6e6}
 .note-box{background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--ink-2);line-height:1.5;white-space:pre-line}
 .fu-row{display:grid;grid-template-columns:1fr 130px 120px;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-bottom:9px}
 .fu-row .stale{font-weight:700;font-size:13px;color:#c0392b}

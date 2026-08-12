@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { STAGE_LABEL } from "@/lib/format";
+import { logActivity } from "@/lib/activity";
 
 /** Only ADMINs may change data — MEMBER accounts are read-only ("you curate, team views"). */
 async function requireAdmin() {
@@ -17,13 +19,15 @@ function revalidateAll(id?: string) {
   revalidatePath("/quotes");
   revalidatePath("/contractors");
   revalidatePath("/follow-ups");
+  revalidatePath("/activity");
   if (id) revalidatePath(`/projects/${id}`);
 }
 
 export async function logContact(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
-  await prisma.project.update({ where: { id }, data: { lastContact: new Date() } });
+  const p = await prisma.project.update({ where: { id }, data: { lastContact: new Date() } });
+  await logActivity("Logged contact", p.name);
   revalidateAll(id);
 }
 
@@ -32,7 +36,8 @@ export async function setStage(formData: FormData) {
   const id = String(formData.get("id"));
   const stage = String(formData.get("stage")) as
     | "TRIAGE" | "TAKEOFF" | "REVISION" | "READY" | "FOLLOWUP" | "STATUS" | "SOLD" | "DEAD";
-  await prisma.project.update({ where: { id }, data: { stage } });
+  const p = await prisma.project.update({ where: { id }, data: { stage } });
+  await logActivity(`Moved to ${STAGE_LABEL[stage] || stage}`, p.name);
   revalidateAll(id);
 }
 
@@ -40,7 +45,9 @@ export async function setStage(formData: FormData) {
 export async function toggleFocus(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
-  const project = await prisma.project.findUnique({ where: { id }, select: { focus: true } });
-  await prisma.project.update({ where: { id }, data: { focus: !project?.focus } });
+  const current = await prisma.project.findUnique({ where: { id }, select: { focus: true, name: true } });
+  const next = !current?.focus;
+  await prisma.project.update({ where: { id }, data: { focus: next } });
+  await logActivity(next ? "Pinned to team focus" : "Removed from team focus", current?.name);
   revalidateAll(id);
 }
