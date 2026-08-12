@@ -1,0 +1,190 @@
+// TAG CRM — data model
+// Postgres works with Vercel Postgres, Neon, and Supabase (all `postgresql`).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Stage {
+  TRIAGE
+  TAKEOFF
+  REVISION
+  READY
+  FOLLOWUP
+  STATUS
+  SOLD
+  DEAD
+}
+
+enum TradeType {
+  CABINETRY
+  COUNTERTOP
+  FLOORING
+  TILE
+  FINISH_CARPENTRY
+  MILLWORK
+}
+
+enum TakeoffStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+}
+
+enum QuoteStatus {
+  DRAFT
+  READY
+  SENT
+  REVISION
+  HOLD
+  WON
+  LOST
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("MEMBER") // ADMIN | MEMBER
+  createdAt    DateTime @default(now())
+}
+
+model Contractor {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  contacts  Contact[]
+  projects  Project[]
+  createdAt DateTime  @default(now())
+}
+
+model Contact {
+  id           String     @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  contractorId String
+}
+
+model Project {
+  id            String     @id @default(cuid())
+  number        String     @unique
+  name          String
+  contractor    Contractor? @relation(fields: [contractorId], references: [id])
+  contractorId  String?
+  architect     String?
+  developer     String?
+  ownerRep      String?     // responsible team member
+  stage         Stage       @default(TRIAGE)
+  closingPct    Int         @default(50)
+  value         Float?
+  lastContact   DateTime?
+  dateReceived  DateTime?
+  submittalDate DateTime?
+  notes         String?     @db.Text
+  focus         Boolean     @default(false) // pinned to the team "Where to focus" board
+  takeoffs      Takeoff[]
+  quotes        Quote[]
+  proposals     Proposal[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Quote {
+  id        String      @id @default(cuid())
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  trade     TradeType
+  version   Int         @default(1)
+  value     Float       @default(0)
+  status    QuoteStatus @default(DRAFT)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Takeoff {
+  id        String        @id @default(cuid())
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  trade     TradeType
+  status    TakeoffStatus @default(PENDING)
+  note      String?
+}
+
+model Proposal {
+  id          String         @id @default(cuid())
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  tradeCode   String         @default("C")
+  version     Int            @default(1)
+  quoteNumber String
+  date        String         @default("")
+  billName    String         @default("")
+  contact     String         @default("")
+  email       String         @default("")
+  projName    String         @default("")
+  projAddr    String         @default("")
+  discountPct Float          @default(0)  // e.g. 15 for package pricing
+  salesTax    Float          @default(0)
+  status      String         @default("DRAFT")
+  summaryLines SummaryLine[]
+  alternates  Alternate[]
+  scopes      ScopeSection[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model SummaryLine {
+  id         String   @id @default(cuid())
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  proposalId String
+  label      String
+  note       String   @default("")
+  amount     Float    @default(0)
+  sort       Int      @default(0)
+}
+
+model Alternate {
+  id         String   @id @default(cuid())
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  proposalId String
+  label      String
+  amount     Float    @default(0)
+  sort       Int      @default(0)
+}
+
+model ScopeSection {
+  id           String         @id @default(cuid())
+  proposal     Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  proposalId   String
+  trade        String
+  sort         Int            @default(0)
+  includePhase Boolean        @default(true)
+  phase        String         @default("") @db.Text
+  products     ScopeProduct[]
+  materials    ScopeMaterial[]
+}
+
+model ScopeProduct {
+  id        String       @id @default(cuid())
+  section   ScopeSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId String
+  label     String
+  qty       String       @default("")
+  sort      Int          @default(0)
+}
+
+model ScopeMaterial {
+  id        String       @id @default(cuid())
+  section   ScopeSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId String
+  label     String
+  value     String       @default("")
+  sort      Int          @default(0)
+}
