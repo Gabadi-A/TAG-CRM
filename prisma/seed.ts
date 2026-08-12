@@ -124,6 +124,13 @@ const TEAM = [
 ];
 
 async function main() {
+  // Only seed an empty database — protects live data from being reset on future deploys.
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    console.log(`Seed skipped — database already has ${existingUsers} user(s).`);
+    return;
+  }
+
   // Users
   const adminEmail = (process.env.SEED_ADMIN_EMAIL || "gabriel@theabadigroup.com").toLowerCase();
   const adminPass = process.env.SEED_ADMIN_PASSWORD || "changeme-2026";
