@@ -23,7 +23,7 @@ const TRADE_LABEL: Record<string, string> = {
   MILLWORK: "Millwork",
 };
 
-export const DEFAULT_PHASE =
+const DEFAULT_PHASE =
   "Pre-production (shop drawings 2–4 wks) · Production 8–10 wks · Pre-installation site verification · Installation NOT in base price · Post-installation QC · OSHA / ADA compliance.\nExclusions: plumbing & electrical, disposal outside building, scribing / shoe moldings / caulking, structural modifications, sales tax.";
 
 export async function createProposal(formData: FormData) {
