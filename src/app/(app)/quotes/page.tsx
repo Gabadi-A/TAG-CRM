@@ -93,7 +93,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
         <span className="pill-note">{rows.length} quotes</span>
       </form>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead>
           <tr>
             {th("id", "Quote #")}{th("name", "Project")}{th("trade", "Trade")}{th("gc", "Contractor")}
@@ -118,7 +118,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

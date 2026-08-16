@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,8 @@ type SP = { only?: string; sort?: string; dir?: string };
 
 export default async function ContractorsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { only = "all", sort = "openVal", dir = "desc" } = await searchParams;
+  const session = await auth();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
   const contractors = await prisma.contractor.findMany({
     include: { projects: { include: { quotes: true } } },
@@ -25,6 +28,7 @@ export default async function ContractorsPage({ searchParams }: { searchParams: 
     const activeOpps = c.projects.filter((p) => p.stage !== "SOLD" && p.stage !== "DEAD").length;
     const decided = wonC + lostC;
     return {
+      id: c.id,
       name: c.name,
       openVal, wonVal, lostVal, activeOpps,
       winRate: decided ? Math.round((wonC / decided) * 100) : null,
@@ -73,9 +77,10 @@ export default async function ContractorsPage({ searchParams }: { searchParams: 
         </select>
         <button className="btn ghost" type="submit">Filter</button>
         <span className="pill-note">{rows.length} contractors</span>
+        {isAdmin && <Link href="/contractors/new" className="btn" style={{ marginLeft: "auto" }}>+ New contractor</Link>}
       </form>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead>
           <tr>
             {th("name", "Contractor")}
@@ -89,7 +94,7 @@ export default async function ContractorsPage({ searchParams }: { searchParams: 
         <tbody>
           {rows.map((c, i) => (
             <tr key={i} className="rowlink">
-              <td style={{ fontWeight: 600 }}><Link href={`/projects?gc=${encodeURIComponent(c.name)}`}>{c.name}</Link></td>
+              <td style={{ fontWeight: 600 }}><Link href={`/contractors/${c.id}`}>{c.name}</Link></td>
               <td><span className={"rel " + (c.isClient ? "client" : "prospect")}>{c.isClient ? "Client" : "Prospect"}</span></td>
               <td className="num-cell">{c.openVal ? fmt(c.openVal) : "—"}</td>
               <td className="num-cell">{c.activeOpps}</td>
@@ -98,7 +103,7 @@ export default async function ContractorsPage({ searchParams }: { searchParams: 
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

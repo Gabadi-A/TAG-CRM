@@ -45,8 +45,9 @@ export default async function ProjectsPage({
         </select>
         <button className="btn ghost" type="submit">Filter</button>
         <span className="pill-note">{rows.length} opportunities</span>
+        {isAdmin && <Link href="/projects/new" className="btn" style={{ marginLeft: "auto" }}>+ New opportunity</Link>}
       </form>
-      <table>
+      <div className="table-wrap"><table>
         <thead>
           <tr>
             <th style={{ width: 32, textAlign: "center", color: "#c9a24a" }} title="Pinned to team focus">★</th>
@@ -81,7 +82,7 @@ export default async function ProjectsPage({
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

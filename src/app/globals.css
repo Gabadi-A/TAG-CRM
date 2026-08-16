@@ -59,6 +59,7 @@ h1.page{font-size:22px;margin:0 0 2px}
 .pct{display:inline-flex;align-items:center;gap:5px}
 .pct .dot{width:8px;height:8px;border-radius:50%}
 table{width:100%;border-collapse:collapse;font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
 th{background:var(--tan-lt);text-align:left;padding:10px 12px;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
 td{padding:9px 12px;border-top:1px solid var(--line)}
 tbody tr:hover{background:var(--cream);cursor:pointer}
@@ -80,6 +81,14 @@ tbody tr:hover{background:var(--cream);cursor:pointer}
 .btn.ghost:hover{background:var(--tan-lt)}
 .danger-btn{background:#fff;border:1px solid #e6b3b3;color:#a52222;border-radius:9px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;display:inline-block}
 .danger-btn:hover{background:#fbe6e6}
+/* forms */
+.field{margin-bottom:11px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--paper)}
+.field textarea{min-height:64px;resize:vertical;line-height:1.5}
+.frow{display:flex;gap:10px;flex-wrap:wrap}
+.frow .field{flex:1 1 140px;margin-bottom:11px}
+.row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .note-box{background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13px;color:var(--ink-2);line-height:1.5;white-space:pre-line}
 .fu-row{display:grid;grid-template-columns:1fr 130px 120px;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-bottom:9px}
 .fu-row .stale{font-weight:700;font-size:13px;color:#c0392b}
@@ -162,6 +171,50 @@ tbody tr:hover{background:var(--cream);cursor:pointer}
 .scope-line .n{text-align:right;font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
 .phase-text{font-size:10.5px;line-height:1.5;white-space:pre-line;color:var(--muted)}
+
+/* ---- phones ---- */
+@media (max-width: 720px){
+  .section{padding:16px 13px}
+  h1.page{font-size:19px}
+  .page-sub{font-size:12.5px}
+
+  .topbar-inner{gap:8px;padding:10px 12px}
+  .logo .word{font-size:18px}
+  .logo .sub{display:none}
+  .nav{margin-left:4px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav a{padding:8px 10px;font-size:13px;white-space:nowrap}
+  .spacer{display:none}
+  .badge-user{gap:6px}
+  .badge-user span{display:none}
+
+  .tiles{grid-template-columns:repeat(2,1fr) !important;gap:10px;margin-bottom:16px}
+  .tile{padding:12px 13px;border-radius:12px}
+  .tile .val{font-size:21px}
+
+  .grid-2{grid-template-columns:1fr;gap:12px}
+  .card{padding:15px;border-radius:12px}
+
+  .barrow{grid-template-columns:92px 1fr 64px !important;gap:8px;font-size:12px}
+
+  .focus-row{padding:9px 11px}
+  .focus-main{grid-template-columns:50px 1fr auto;gap:8px}
+  .focus-main .num-cell div{display:none}
+  .close-badge{font-size:14px}
+
+  .fu-row{grid-template-columns:1fr;gap:6px}
+
+  .toolbar{gap:8px}
+  .toolbar input{min-width:0;flex:1 1 140px;width:auto}
+  .toolbar select{flex:1 1 120px}
+
+  table{font-size:12.5px}
+  th,td{padding:8px 9px;white-space:nowrap}
+
+  .kv{grid-template-columns:104px 1fr}
+  .prop-shell{grid-template-columns:1fr}
+  .prop-panel{position:static;max-height:none}
+}
 
 @media print{
   .no-print{display:none!important}

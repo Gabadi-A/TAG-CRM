@@ -68,6 +68,8 @@ model Activity {
 model Contractor {
   id        String    @id @default(cuid())
   name      String    @unique
+  address   String?
+  notes     String?   @db.Text   // GC-wide notes: tax info, "just furnish", etc.
   contacts  Contact[]
   projects  Project[]
   createdAt DateTime  @default(now())
@@ -80,6 +82,7 @@ model Contact {
   phone        String?
   contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
   contractorId String
+  projects     Project[]  @relation("OpportunityContact")
 }
 
 model Project {
@@ -88,6 +91,8 @@ model Project {
   name          String
   contractor    Contractor? @relation(fields: [contractorId], references: [id])
   contractorId  String?
+  contact       Contact?    @relation("OpportunityContact", fields: [contactId], references: [id])
+  contactId     String?
   architect     String?
   developer     String?
   ownerRep      String?     // responsible team member

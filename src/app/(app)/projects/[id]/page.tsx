@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { STAGES, STAGE_LABEL, fmt, pctColor, daysSince, TRADE_LABEL, QUOTE_STATUS, quoteNumber } from "@/lib/format";
+import { STAGE_LABEL, fmt, pctColor, daysSince, TRADE_LABEL, QUOTE_STATUS, quoteNumber } from "@/lib/format";
 import { createProposal } from "@/lib/actions/proposals";
-import { setStage, logContact, toggleFocus } from "@/lib/actions/projects";
+import { logContact, toggleFocus } from "@/lib/actions/projects";
+import OpportunityEditor from "@/components/OpportunityEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   const p = await prisma.project.findUnique({
     where: { id },
     include: {
-      contractor: true,
+      contractor: { include: { contacts: true } },
+      contact: true,
       takeoffs: true,
       quotes: { orderBy: { value: "desc" } },
       proposals: { orderBy: { version: "desc" } },
@@ -25,6 +27,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
   if (!p) notFound();
   const d = daysSince(p.lastContact);
   const oppValue = p.quotes.reduce((s, q) => s + (q.value || 0), 0);
+  const contacts = (p.contractor?.contacts || []).map((c) => ({ id: c.id, name: c.name }));
 
   return (
     <div className="section">
@@ -41,23 +44,27 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
       </div>
       <p className="page-sub" style={{ marginTop: 6 }}>{p.contractor?.name || "—"} · {p.architect || "no architect"}</p>
 
+      {isAdmin && (
+        <div style={{ marginBottom: 16 }}>
+          <OpportunityEditor
+            p={{
+              id: p.id, name: p.name, gc: p.contractor?.name || "", contactId: p.contactId,
+              architect: p.architect, ownerRep: p.ownerRep, stage: p.stage,
+              closingPct: p.closingPct, value: p.value,
+              lastContact: p.lastContact ? new Date(p.lastContact).toISOString().slice(0, 10) : null,
+              notes: p.notes,
+            }}
+            contacts={contacts}
+          />
+        </div>
+      )}
+
       <div className="grid-2">
         <div className="card">
           <div className="kv">
-            <div className="k">Stage</div>
-            <div>
-              {isAdmin ? (
-                <form action={setStage} style={{ display: "flex", gap: 8 }}>
-                  <input type="hidden" name="id" value={p.id} />
-                  <select name="stage" defaultValue={p.stage} className="pill-note" style={{ padding: "4px 8px" }}>
-                    {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                  </select>
-                  <button className="btn ghost" type="submit">Save</button>
-                </form>
-              ) : (
-                <span className="pill-note">{STAGE_LABEL[p.stage]}</span>
-              )}
-            </div>
+            <div className="k">Stage</div><div><span className="pill-note">{STAGE_LABEL[p.stage]}</span></div>
+            <div className="k">Contractor</div><div>{p.contractor ? <Link href={`/contractors/${p.contractor.id}`}>{p.contractor.name}</Link> : "—"}</div>
+            <div className="k">GC contact</div><div>{p.contact ? <>{p.contact.name}{p.contact.email && <span className="muted"> · {p.contact.email}</span>}</> : <span className="muted">—</span>}</div>
             <div className="k">Owner</div><div>{p.ownerRep || "—"}</div>
             <div className="k">Total value</div><div style={{ fontWeight: 700 }}>{fmt(oppValue || p.value)}</div>
             <div className="k">Closing %</div><div><span className="pct"><span className="dot" style={{ background: pctColor(p.closingPct) }} />{p.closingPct}%</span></div>

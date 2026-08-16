@@ -25,7 +25,7 @@ export default async function TeamPage() {
 
       <AddUserForm />
 
-      <table>
+      <div className="table-wrap"><table>
         <thead>
           <tr><th>Name</th><th>Email</th><th>Role</th><th>Reset password</th><th></th></tr>
         </thead>
@@ -62,7 +62,7 @@ export default async function TeamPage() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
