@@ -73,9 +73,24 @@ export async function updateOpportunity(formData: FormData) {
       value: valueRaw ? money(valueRaw) : null,
       lastContact: lastRaw ? new Date(lastRaw) : null,
       notes: s(formData, "notes") || null,
+      nextStep: s(formData, "nextStep") || null,
+      followUpDate: s(formData, "followUpDate") ? new Date(s(formData, "followUpDate")) : null,
     },
   });
   await logActivity("Edited opportunity", p.name);
+  refreshOpps(id);
+}
+
+/** Quick inline edit of just the follow-up next step + date, from the Follow-ups list. */
+export async function setNextStep(formData: FormData) {
+  await requireAdmin();
+  const id = s(formData, "id");
+  const date = s(formData, "followUpDate");
+  const p = await prisma.project.update({
+    where: { id },
+    data: { nextStep: s(formData, "nextStep") || null, followUpDate: date ? new Date(date) : null },
+  });
+  await logActivity("Set next step", p.name);
   refreshOpps(id);
 }
 

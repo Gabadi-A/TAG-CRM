@@ -103,6 +103,8 @@ model Project {
   dateReceived  DateTime?
   submittalDate DateTime?
   notes         String?     @db.Text
+  nextStep      String?     @db.Text  // what to do next on the follow-up
+  followUpDate  DateTime?             // when to follow up
   focus         Boolean     @default(false) // pinned to the team "Where to focus" board
   takeoffs      Takeoff[]
   quotes        Quote[]

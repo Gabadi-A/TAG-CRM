@@ -63,8 +63,13 @@ export default async function DashboardPage() {
 
   const followUps = active
     .map((p) => ({ p, d: daysSince(p.lastContact) }))
-    .filter((x) => x.d == null || x.d > 30)
-    .sort((a, b) => (b.d == null ? 1e9 : b.d) - (a.d == null ? 1e9 : a.d));
+    .filter((x) => x.d == null || x.d > 30 || x.p.followUpDate != null)
+    .sort((a, b) => {
+      const fa = a.p.followUpDate ? new Date(a.p.followUpDate).getTime() : Infinity;
+      const fb = b.p.followUpDate ? new Date(b.p.followUpDate).getTime() : Infinity;
+      if (fa !== fb) return fa - fb;
+      return (b.d == null ? 1e9 : b.d) - (a.d == null ? 1e9 : a.d);
+    });
   const urgent = followUps.slice(0, 5);
 
   return (
@@ -130,6 +135,7 @@ export default async function DashboardPage() {
               <span>
                 <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
                 <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · {d == null ? "no email logged" : "quiet"}</div>
+                {p.nextStep && <div style={{ fontSize: 12, color: "var(--brand)", marginTop: 2 }}>Next: {p.nextStep}</div>}
               </span>
               <span className="num-cell" style={{ fontWeight: 700 }}>{fmtK(oppValue(p))}</span>
             </Link>

@@ -53,6 +53,8 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               closingPct: p.closingPct, value: p.value,
               lastContact: p.lastContact ? new Date(p.lastContact).toISOString().slice(0, 10) : null,
               notes: p.notes,
+              nextStep: p.nextStep,
+              followUpDate: p.followUpDate ? new Date(p.followUpDate).toISOString().slice(0, 10) : null,
             }}
             contacts={contacts}
           />
