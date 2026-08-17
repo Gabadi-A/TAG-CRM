@@ -61,6 +61,12 @@ export default async function DashboardPage() {
   let focusList = (curated ? pinned : active).slice().sort(byPriority);
   if (!curated) focusList = focusList.slice(0, 6);
 
+  const followUps = active
+    .map((p) => ({ p, d: daysSince(p.lastContact) }))
+    .filter((x) => x.d == null || x.d > 30)
+    .sort((a, b) => (b.d == null ? 1e9 : b.d) - (a.d == null ? 1e9 : a.d));
+  const urgent = followUps.slice(0, 5);
+
   return (
     <div className="section">
       <h1 className="page">Sales dashboard</h1>
@@ -108,6 +114,27 @@ export default async function DashboardPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <h3 style={{ margin: 0 }}>Needs a follow-up</h3>
+          <Link href="/follow-ups" className="pill-note">See all {followUps.length} →</Link>
+        </div>
+        <p className="h-sub" style={{ marginTop: 6 }}>Opportunities with no contact in 30+ days — reach out before they go cold.</p>
+        {urgent.length === 0 && <div className="muted" style={{ fontSize: 13 }}>All caught up — nothing older than 30 days.</div>}
+        {urgent.map(({ p, d }) => (
+          <div className="focus-row" key={p.id}>
+            <Link className="focus-main" href={`/projects/${p.id}`}>
+              <span className="close-badge" style={{ color: "#c0392b" }}>{d == null ? "—" : d + "d"}</span>
+              <span>
+                <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
+                <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · {d == null ? "no email logged" : "quiet"}</div>
+              </span>
+              <span className="num-cell" style={{ fontWeight: 700 }}>{fmtK(oppValue(p))}</span>
+            </Link>
+          </div>
+        ))}
       </div>
 
       <div className="grid-2">
