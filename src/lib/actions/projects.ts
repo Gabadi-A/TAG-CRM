@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { STAGE_LABEL } from "@/lib/format";
 import { logActivity } from "@/lib/activity";
+import { syncQuotesToStage } from "@/lib/quotes";
 
 /** Only ADMINs may change data — MEMBER accounts are read-only ("you curate, team views"). */
 async function requireAdmin() {
@@ -40,6 +41,7 @@ export async function setStage(formData: FormData) {
     where: { id },
     data: { stage, ...(stage === "SOLD" ? { closingPct: 100 } : stage === "DEAD" ? { closingPct: 0 } : {}) },
   });
+  await syncQuotesToStage(id, stage);
   await logActivity(`Moved to ${STAGE_LABEL[stage] || stage}`, p.name);
   revalidateAll(id);
 }

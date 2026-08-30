@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { basecampDisconnect, basecampFindProject, basecampCardTable } from "@/lib/basecamp";
 import { logActivity } from "@/lib/activity";
+import { syncQuotesToStage } from "@/lib/quotes";
 
 type Stage = "TRIAGE" | "TAKEOFF" | "REVISION" | "READY" | "FOLLOWUP" | "STATUS" | "SOLD" | "DEAD";
 
@@ -67,11 +68,13 @@ export async function importEstimatingCardTable(_prev: ImportResult | undefined,
             where: { number: parsed.number },
             data: { stage: stage as never, basecampUrl: card.app_url || null, basecampColumn: col.title, basecampProjectId: String(card.id), ...(stage === "SOLD" ? { closingPct: 100 } : stage === "DEAD" ? { closingPct: 0 } : {}) },
           });
+          await syncQuotesToStage(existing.id, stage);
           updated++;
         } else {
-          await prisma.project.create({
+          const np = await prisma.project.create({
             data: { number: parsed.number, name: parsed.name, stage: stage as never, basecampUrl: card.app_url || null, basecampColumn: col.title, basecampProjectId: String(card.id), closingPct: stage === "SOLD" ? 100 : stage === "DEAD" ? 0 : 50 },
           });
+          await syncQuotesToStage(np.id, stage);
           created++;
         }
       }

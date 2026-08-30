@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { money } from "@/lib/format";
 import { logActivity } from "@/lib/activity";
+import { syncQuotesToStage } from "@/lib/quotes";
 
 type Stage = "TRIAGE" | "TAKEOFF" | "REVISION" | "READY" | "FOLLOWUP" | "STATUS" | "SOLD" | "DEAD";
 const STAGE_KEYS: Stage[] = ["TRIAGE", "TAKEOFF", "REVISION", "READY", "FOLLOWUP", "STATUS", "SOLD", "DEAD"];
@@ -79,6 +80,7 @@ export async function updateOpportunity(formData: FormData) {
       followUpDate: s(formData, "followUpDate") ? new Date(s(formData, "followUpDate")) : null,
     },
   });
+  await syncQuotesToStage(id, stage);
   await logActivity("Edited opportunity", p.name);
   refreshOpps(id);
 }
