@@ -36,7 +36,10 @@ export async function setStage(formData: FormData) {
   const id = String(formData.get("id"));
   const stage = String(formData.get("stage")) as
     | "TRIAGE" | "TAKEOFF" | "REVISION" | "READY" | "FOLLOWUP" | "STATUS" | "SOLD" | "DEAD";
-  const p = await prisma.project.update({ where: { id }, data: { stage } });
+  const p = await prisma.project.update({
+    where: { id },
+    data: { stage, ...(stage === "SOLD" ? { closingPct: 100 } : stage === "DEAD" ? { closingPct: 0 } : {}) },
+  });
   await logActivity(`Moved to ${STAGE_LABEL[stage] || stage}`, p.name);
   revalidateAll(id);
 }

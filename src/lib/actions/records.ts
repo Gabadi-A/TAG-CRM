@@ -35,7 +35,8 @@ export async function createOpportunity(_prev: string | undefined, formData: For
   if (!number || !name) return "A project number and name are both required.";
   if (await prisma.project.findUnique({ where: { number } })) return `Project #${number} already exists.`;
   const stage = (STAGE_KEYS.includes(s(formData, "stage") as Stage) ? s(formData, "stage") : "TRIAGE") as Stage;
-  const closingPct = Math.max(0, Math.min(100, parseInt(s(formData, "closingPct"), 10) || 50));
+  const closingRaw = Math.max(0, Math.min(100, parseInt(s(formData, "closingPct"), 10) || 50));
+  const closingPct = stage === "SOLD" ? 100 : stage === "DEAD" ? 0 : closingRaw;
   const valueRaw = s(formData, "value");
   const project = await prisma.project.create({
     data: {
@@ -57,7 +58,8 @@ export async function updateOpportunity(formData: FormData) {
   await requireAdmin();
   const id = s(formData, "id");
   const stage = (STAGE_KEYS.includes(s(formData, "stage") as Stage) ? s(formData, "stage") : "TRIAGE") as Stage;
-  const closingPct = Math.max(0, Math.min(100, parseInt(s(formData, "closingPct"), 10) || 0));
+  const closingRaw = Math.max(0, Math.min(100, parseInt(s(formData, "closingPct"), 10) || 0));
+  const closingPct = stage === "SOLD" ? 100 : stage === "DEAD" ? 0 : closingRaw;
   const valueRaw = s(formData, "value");
   const lastRaw = s(formData, "lastContact");
   const contactId = s(formData, "contactId");

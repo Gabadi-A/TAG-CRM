@@ -65,12 +65,12 @@ export async function importEstimatingCardTable(_prev: ImportResult | undefined,
           // Sync only the board-owned fields; keep CRM data (value, contacts, quotes, notes) intact.
           await prisma.project.update({
             where: { number: parsed.number },
-            data: { stage: stage as never, basecampUrl: card.app_url || null, basecampColumn: col.title, basecampProjectId: String(card.id) },
+            data: { stage: stage as never, basecampUrl: card.app_url || null, basecampColumn: col.title, basecampProjectId: String(card.id), ...(stage === "SOLD" ? { closingPct: 100 } : stage === "DEAD" ? { closingPct: 0 } : {}) },
           });
           updated++;
         } else {
           await prisma.project.create({
-            data: { number: parsed.number, name: parsed.name, stage: stage as never, basecampUrl: card.app_url || null, basecampColumn: col.title, basecampProjectId: String(card.id) },
+            data: { number: parsed.number, name: parsed.name, stage: stage as never, basecampUrl: card.app_url || null, basecampColumn: col.title, basecampProjectId: String(card.id), closingPct: stage === "SOLD" ? 100 : stage === "DEAD" ? 0 : 50 },
           });
           created++;
         }
