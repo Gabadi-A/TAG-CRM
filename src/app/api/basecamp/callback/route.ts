@@ -18,8 +18,10 @@ export async function GET(req: Request) {
   }
   try {
     await basecampExchangeCode(code);
-  } catch {
-    return NextResponse.redirect(new URL("/basecamp?error=exchange", req.url));
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    console.error("[basecamp] token exchange failed:", reason);
+    return NextResponse.redirect(new URL(`/basecamp?error=exchange&reason=${encodeURIComponent(reason.slice(0, 240))}`, req.url));
   }
   jar.set("bc_state", "", { path: "/", maxAge: 0 });
   return NextResponse.redirect(new URL("/basecamp?connected=1", req.url));

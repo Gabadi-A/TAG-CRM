@@ -5,10 +5,10 @@ import { disconnectBasecamp } from "@/lib/actions/basecamp";
 
 export const dynamic = "force-dynamic";
 
-export default async function BasecampPage({ searchParams }: { searchParams: Promise<{ connected?: string; error?: string }> }) {
+export default async function BasecampPage({ searchParams }: { searchParams: Promise<{ connected?: string; error?: string; reason?: string }> }) {
   const session = await auth();
   if ((session?.user as { role?: string } | undefined)?.role !== "ADMIN") redirect("/dashboard");
-  const { connected, error } = await searchParams;
+  const { connected, error, reason } = await searchParams;
 
   const configured = basecampConfigured();
   const isConnected = configured ? await basecampConnected() : false;
@@ -25,7 +25,7 @@ export default async function BasecampPage({ searchParams }: { searchParams: Pro
       <p className="page-sub">Connect the CRM to your Basecamp account to see your projects here — and (next) link them to opportunities.</p>
 
       {error === "state" && <div className="banner">Connection was cancelled or expired — please try again.</div>}
-      {error === "exchange" && <div className="banner">Couldn&apos;t complete the connection. Double-check the app keys and that the redirect URL matches exactly, then retry.</div>}
+      {error === "exchange" && <div className="banner">Couldn&apos;t complete the connection{reason ? `: ${reason}` : ""}. Double-check the Client Secret and that the redirect URL matches exactly, then retry.</div>}
       {error === "notconfigured" && <div className="banner">Basecamp keys aren&apos;t set yet — add them in Vercel first (see below).</div>}
       {connected && <div className="info-banner">Connected to Basecamp.</div>}
 
