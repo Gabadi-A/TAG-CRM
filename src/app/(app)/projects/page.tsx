@@ -12,29 +12,66 @@ const oppValue = (p: { quotes: QuoteLite[] }) => p.quotes.reduce((s, q) => s + (
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; gc?: string }>;
+  searchParams: Promise<{ q?: string; gc?: string; sort?: string; dir?: string }>;
 }) {
-  const { q = "", gc = "" } = await searchParams;
+  const { q = "", gc = "", sort = "closing", dir = "desc" } = await searchParams;
   const session = await auth();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
   const [projects, contractors] = await Promise.all([
-    prisma.project.findMany({
-      include: { contractor: true, quotes: true },
-      orderBy: [{ closingPct: "desc" }, { value: "desc" }],
-    }),
+    prisma.project.findMany({ include: { contractor: true, quotes: true } }),
     prisma.contractor.findMany({ orderBy: { name: "asc" } }),
   ]);
   const ql = q.toLowerCase();
-  const rows = projects.filter((p) => {
-    const hay = `${p.number} ${p.name} ${p.contractor?.name || ""} ${p.ownerRep || ""}`.toLowerCase();
-    return (!q || hay.includes(ql)) && (!gc || p.contractor?.name === gc);
+  const mapped = projects
+    .filter((p) => {
+      const hay = `${p.number} ${p.name} ${p.contractor?.name || ""} ${p.ownerRep || ""}`.toLowerCase();
+      return (!q || hay.includes(ql)) && (!gc || p.contractor?.name === gc);
+    })
+    .map((p) => ({
+      p,
+      num: parseInt(p.number.replace(/[^0-9]/g, ""), 10) || 0,
+      name: p.name,
+      gc: p.contractor?.name || "",
+      resp: p.ownerRep || "",
+      stage: STAGE_LABEL[p.stage] || p.stage,
+      quotes: p.quotes.length,
+      closing: p.closingPct,
+      val: oppValue(p) || p.value || 0,
+    }));
+
+  const key = sort as keyof (typeof mapped)[number];
+  const dirMul = dir === "asc" ? 1 : -1;
+  mapped.sort((a, b) => {
+    const va = a[key] as string | number;
+    const vb = b[key] as string | number;
+    let r: number;
+    if (typeof va === "string" && typeof vb === "string") r = va.localeCompare(vb);
+    else r = (va as number) - (vb as number);
+    if (r !== 0) return r * dirMul;
+    return b.val - a.val; // tiebreak: higher value first
   });
+
+  const numericCols = ["num", "quotes", "closing", "val"];
+  const th = (k: string, label: string, right = false) => {
+    const active = sort === k;
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (gc) params.set("gc", gc);
+    params.set("sort", k);
+    params.set("dir", active ? (dir === "asc" ? "desc" : "asc") : numericCols.includes(k) ? "desc" : "asc");
+    const arrow = active ? (dir === "desc" ? " ▼" : " ▲") : "";
+    return (
+      <th style={right ? { textAlign: "right" } : undefined}>
+        <Link href={`/projects?${params.toString()}`}>{label}{arrow}</Link>
+      </th>
+    );
+  };
 
   return (
     <div className="section">
       <h1 className="page">Opportunities</h1>
-      <p className="page-sub">The master list — sorted by closing probability so the best bets sit on top. Star an opportunity to pin it to the team&apos;s focus board.</p>
+      <p className="page-sub">The master list. Click any column heading to sort it — click again to flip the order. Star an opportunity to pin it to the team&apos;s focus board.</p>
       <form className="toolbar" method="get">
         <input name="q" placeholder="Search project, #, GC, rep…" defaultValue={q} />
         <select name="gc" defaultValue={gc}>
@@ -44,18 +81,19 @@ export default async function ProjectsPage({
           ))}
         </select>
         <button className="btn ghost" type="submit">Filter</button>
-        <span className="pill-note">{rows.length} opportunities</span>
+        <span className="pill-note">{mapped.length} opportunities</span>
         {isAdmin && <Link href="/projects/new" className="btn" style={{ marginLeft: "auto" }}>+ New opportunity</Link>}
       </form>
       <div className="table-wrap"><table>
         <thead>
           <tr>
             <th style={{ width: 32, textAlign: "center", color: "#c9a24a" }} title="Pinned to team focus">★</th>
-            <th>#</th><th>Project</th><th>Contractor</th><th>Owner</th><th>Stage</th><th style={{ textAlign: "right" }}>Quotes</th><th style={{ textAlign: "right" }}>Close %</th><th style={{ textAlign: "right" }}>Value</th>
+            {th("num", "#")}{th("name", "Project")}{th("gc", "Contractor")}{th("resp", "Owner")}{th("stage", "Stage")}
+            {th("quotes", "Quotes", true)}{th("closing", "Close %", true)}{th("val", "Value", true)}
           </tr>
         </thead>
         <tbody>
-          {rows.map((p) => {
+          {mapped.map(({ p }) => {
             const won = p.quotes.filter((x) => x.status === "WON").length;
             const lost = p.quotes.filter((x) => x.status === "LOST").length;
             return (
