@@ -13,7 +13,7 @@ export default function TopNav({ name, isAdmin }: { name?: string | null; isAdmi
     ["/contractors", "Contractors"],
     ["/follow-ups", "Follow-ups"],
     ["/activity", "Activity"],
-    ...(isAdmin ? ([["/team", "Team"]] as [string, string][]) : []),
+    ...(isAdmin ? ([["/basecamp", "Basecamp"], ["/team", "Team"]] as [string, string][]) : []),
   ];
   const path = usePathname();
   const initials = (name || "U")
