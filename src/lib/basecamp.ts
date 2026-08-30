@@ -128,7 +128,67 @@ export type BcProject = {
   purpose?: string;
 };
 
-/** Active projects (first page — up to ~15/page from Basecamp; enough to get started). */
+/** All active projects — follows Basecamp's pagination (Link header) to get every page. */
 export async function basecampListProjects(): Promise<BcProject[]> {
-  return bcFetch<BcProject[]>(`/projects.json`);
+  const conn = await basecampConnection();
+  if (!conn || !conn.accountId) throw new Error("Basecamp is not connected.");
+  const all: BcProject[] = [];
+  let url: string | null = `https://3.basecampapi.com/${conn.accountId}/projects.json`;
+  let guard = 0;
+  while (url && guard < 50) {
+    guard++;
+    const res: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${conn.token}`, "User-Agent": UA },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Basecamp API ${res.status}: ${await res.text()}`);
+    all.push(...((await res.json()) as BcProject[]));
+    const link = res.headers.get("link");
+    const next = link ? link.match(/<([^>]+)>;\s*rel="next"/) : null;
+    url = next ? next[1] : null;
+  }
+  all.sort((a, b) => a.name.localeCompare(b.name));
+  return all;
+}
+
+/** Fetch any absolute Basecamp API URL (the dock entries hand us full urls). */
+async function bcGet<T>(absoluteUrl: string): Promise<T> {
+  const conn = await basecampConnection();
+  if (!conn) throw new Error("Basecamp is not connected.");
+  const res = await fetch(absoluteUrl, {
+    headers: { Authorization: `Bearer ${conn.token}`, "User-Agent": UA },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Basecamp API ${res.status}: ${await res.text()}`);
+  return (await res.json()) as T;
+}
+
+export type BcDock = { id: number; title: string; name: string; enabled: boolean; url: string; app_url: string };
+export type BcProjectFull = BcProject & { dock: BcDock[] };
+export type BcDoc = { id: number; title: string; app_url?: string };
+export type BcFile = { id: number; title?: string; filename?: string; app_url?: string; content_type?: string; byte_size?: number };
+export type BcTodolist = { id: number; title: string; completed?: boolean; completed_ratio?: string; app_url?: string };
+
+export async function basecampProjectContents(id: string): Promise<{
+  project: BcProjectFull;
+  docs: BcDoc[];
+  files: BcFile[];
+  todolists: BcTodolist[];
+}> {
+  const project = await bcFetch<BcProjectFull>(`/projects/${id}.json`);
+  const vault = project.dock.find((d) => d.name === "vault" && d.enabled);
+  const todoset = project.dock.find((d) => d.name === "todoset" && d.enabled);
+  let docs: BcDoc[] = [];
+  let files: BcFile[] = [];
+  let todolists: BcTodolist[] = [];
+  if (vault) {
+    const v = await bcGet<{ documents_url?: string; uploads_url?: string }>(vault.url);
+    if (v.documents_url) { try { docs = await bcGet<BcDoc[]>(v.documents_url); } catch { /* ignore */ } }
+    if (v.uploads_url) { try { files = await bcGet<BcFile[]>(v.uploads_url); } catch { /* ignore */ } }
+  }
+  if (todoset) {
+    const ts = await bcGet<{ todolists_url?: string }>(todoset.url);
+    if (ts.todolists_url) { try { todolists = await bcGet<BcTodolist[]>(ts.todolists_url); } catch { /* ignore */ } }
+  }
+  return { project, docs, files, todolists };
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { basecampConfigured, basecampConnected, basecampListProjects, type BcProject } from "@/lib/basecamp";
@@ -55,8 +56,8 @@ export default async function BasecampPage({ searchParams }: { searchParams: Pro
             <thead><tr><th>Project</th><th>Description</th><th></th></tr></thead>
             <tbody>
               {projects.map((pr) => (
-                <tr key={pr.id}>
-                  <td style={{ fontWeight: 600 }}>{pr.name}</td>
+                <tr key={pr.id} className="rowlink">
+                  <td style={{ fontWeight: 600 }}><Link href={`/basecamp/${pr.id}`}>{pr.name}</Link></td>
                   <td className="muted">{pr.description || pr.purpose || "—"}</td>
                   <td>{pr.app_url && <a href={pr.app_url} target="_blank" rel="noreferrer" className="pill-note">Open ↗</a>}</td>
                 </tr>
