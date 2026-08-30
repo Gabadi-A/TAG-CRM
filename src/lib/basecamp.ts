@@ -192,3 +192,55 @@ export async function basecampProjectContents(id: string): Promise<{
   }
   return { project, docs, files, todolists };
 }
+
+/** Fetch every page of an absolute Basecamp list endpoint (follows Link: rel="next"). */
+async function bcGetAll<T>(startUrl: string): Promise<T[]> {
+  const conn = await basecampConnection();
+  if (!conn) throw new Error("Basecamp is not connected.");
+  const out: T[] = [];
+  let url: string | null = startUrl;
+  let guard = 0;
+  while (url && guard < 60) {
+    guard++;
+    const res: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${conn.token}`, "User-Agent": UA },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Basecamp API ${res.status}: ${await res.text()}`);
+    out.push(...((await res.json()) as T[]));
+    const link = res.headers.get("link");
+    const next = link ? link.match(/<([^>]+)>;\s*rel="next"/) : null;
+    url = next ? next[1] : null;
+  }
+  return out;
+}
+
+/** Find a project by (case-insensitive) exact then partial name match. */
+export async function basecampFindProject(name: string): Promise<BcProject | null> {
+  const list = await basecampListProjects();
+  const lower = name.toLowerCase();
+  return list.find((p) => p.name.toLowerCase() === lower)
+    || list.find((p) => p.name.toLowerCase().includes(lower))
+    || null;
+}
+
+export type BcCard = { id: number; title: string; content?: string; app_url?: string; due_on?: string | null };
+export type BcColumn = { id: number; title: string; cards: BcCard[] };
+
+/** Read a project's card table (kanban) as columns of cards. */
+export async function basecampCardTable(projectId: string): Promise<BcColumn[]> {
+  const project = await bcFetch<BcProjectFull>(`/projects/${projectId}.json`);
+  const dock = project.dock.find((d) => (d.name === "kanban_board" || d.name === "card_table") && d.enabled);
+  if (!dock) throw new Error("No card table (kanban board) found in that Basecamp project.");
+  const table = await bcGet<{ lists?: { id: number; title: string; cards_url?: string }[]; columns?: { id: number; title: string; cards_url?: string }[] }>(dock.url);
+  const lists = table.lists || table.columns || [];
+  const columns: BcColumn[] = [];
+  for (const list of lists) {
+    let cards: BcCard[] = [];
+    if (list.cards_url) {
+      try { cards = await bcGetAll<BcCard>(list.cards_url); } catch { cards = []; }
+    }
+    columns.push({ id: list.id, title: list.title, cards });
+  }
+  return columns;
+}

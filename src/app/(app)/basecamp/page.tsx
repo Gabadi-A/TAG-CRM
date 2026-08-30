@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { basecampConfigured, basecampConnected, basecampListProjects, type BcProject } from "@/lib/basecamp";
 import { disconnectBasecamp } from "@/lib/actions/basecamp";
+import ImportEstimating from "@/components/ImportEstimating";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,12 @@ export default async function BasecampPage({ searchParams }: { searchParams: Pro
           <div className="row-actions" style={{ marginBottom: 14 }}>
             <span className="rel client">Connected</span>
             <form action={disconnectBasecamp}><button className="btn ghost" type="submit">Disconnect</button></form>
+          </div>
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Import the Estimating board</h3>
+            <p className="page-sub" style={{ margin: "4px 0 0" }}>Pulls every card from the <b>Estimating</b> card table into your opportunities — matched by <span className="mono">#number</span>. Existing opportunities get their board column + a Basecamp link; new cards become new opportunities (you keep all your CRM data like value, contacts, and quotes).</p>
+            <ImportEstimating />
           </div>
           {apiError && <div className="banner">Couldn&apos;t load projects: {apiError} — try Disconnect, then Connect again.</div>}
           <div className="table-wrap"><table>

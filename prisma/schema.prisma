@@ -116,8 +116,9 @@ model Project {
   notes         String?     @db.Text
   nextStep      String?     @db.Text  // what to do next on the follow-up
   followUpDate  DateTime?             // when to follow up
-  basecampProjectId String?           // linked Basecamp project id
-  basecampUrl       String?           // linked Basecamp project web url
+  basecampProjectId String?           // linked Basecamp project/card id
+  basecampUrl       String?           // linked Basecamp card/project web url
+  basecampColumn    String?           // the Estimating card-table column (real board status)
   focus         Boolean     @default(false) // pinned to the team "Where to focus" board
   takeoffs      Takeoff[]
   quotes        Quote[]

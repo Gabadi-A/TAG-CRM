@@ -41,8 +41,9 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           </form>
         )}
         {!isAdmin && p.focus && <span className="curated-badge">★ Team focus</span>}
+        {p.basecampUrl && <a className="btn ghost" href={p.basecampUrl} target="_blank" rel="noreferrer" style={{ background: "#1d2d35", color: "#fff", borderColor: "#1d2d35" }}>⬒ Open in Basecamp ↗</a>}
       </div>
-      <p className="page-sub" style={{ marginTop: 6 }}>{p.contractor?.name || "—"} · {p.architect || "no architect"}</p>
+      <p className="page-sub" style={{ marginTop: 6 }}>{p.contractor?.name || "—"} · {p.architect || "no architect"}{p.basecampColumn && <> · <span className="pill-note" style={{ background: "#eef1f5", color: "#41556e" }}>Estimating: {p.basecampColumn}</span></>}</p>
 
       {isAdmin && (
         <div style={{ marginBottom: 16 }}>
