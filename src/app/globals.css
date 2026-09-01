@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* follow-ups calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;min-width:680px}
+.cal-dow{font-size:11px;font-weight:700;color:#8d8677;text-transform:uppercase;letter-spacing:.4px;text-align:center;padding:2px 0}
+.cal-cell{background:#fff;border:1px solid #e0d9cb;border-radius:8px;min-height:96px;padding:6px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.cal-cell.empty{background:transparent;border:0}
+.cal-cell.today{border-color:#9e5023;box-shadow:inset 0 0 0 1px #9e5023}
+.cal-cell.past{background:#efeae1}
+.cal-daynum{font-size:12px;font-weight:700;color:#5c564d}
+.cal-item{font-size:11px;background:#efe9df;border:1px solid #e0d9cb;border-radius:6px;padding:2px 6px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;color:#1a1a18}
+.cal-item:hover{border-color:#c17a45}
+.cal-item.overdue{background:#fbe6e6;border-color:#f0c9c9;color:#8a2222}
+
 :root{
   --brand:#9e5023; --brand-dk:#7a3d18; --brand-accent:#c17a45;
   --tan:#dcd3c4; --tan-lt:#efe9df; --cream:#e8e3da; --paper:#ffffff;
