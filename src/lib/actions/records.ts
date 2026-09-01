@@ -78,6 +78,7 @@ export async function updateOpportunity(formData: FormData) {
       notes: s(formData, "notes") || null,
       nextStep: s(formData, "nextStep") || null,
       followUpDate: s(formData, "followUpDate") ? new Date(s(formData, "followUpDate")) : null,
+      dueDate: s(formData, "dueDate") ? new Date(s(formData, "dueDate")) : null,
     },
   });
   await syncQuotesToStage(id, stage);

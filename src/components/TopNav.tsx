@@ -12,6 +12,7 @@ export default function TopNav({ name, isAdmin }: { name?: string | null; isAdmi
     ["/projects", "Opportunities"],
     ["/contractors", "Contractors"],
     ["/follow-ups", "Follow-ups"],
+    ["/calendar", "Calendar"],
     ["/activity", "Activity"],
     ...(isAdmin ? ([["/basecamp", "Basecamp"], ["/team", "Team"]] as [string, string][]) : []),
   ];

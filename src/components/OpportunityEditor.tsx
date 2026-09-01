@@ -9,7 +9,7 @@ type P = {
   id: string; name: string; gc: string; contactId: string | null;
   architect: string | null; ownerRep: string | null; stage: string;
   closingPct: number; value: number | null; lastContact: string | null; notes: string | null;
-  nextStep: string | null; followUpDate: string | null;
+  nextStep: string | null; followUpDate: string | null; dueDate: string | null;
 };
 
 export default function OpportunityEditor({ p, contacts }: { p: P; contacts: Contact[] }) {
@@ -44,6 +44,7 @@ export default function OpportunityEditor({ p, contacts }: { p: P; contacts: Con
       <div className="frow">
         <div className="field" style={{ flex: "2 1 240px" }}><label>Next step</label><input name="nextStep" defaultValue={p.nextStep || ""} placeholder="e.g. Ask about the January start date" /></div>
         <div className="field"><label>Follow up by</label><input name="followUpDate" type="date" defaultValue={p.followUpDate || ""} /></div>
+        <div className="field"><label>Proposal due</label><input name="dueDate" type="date" defaultValue={p.dueDate || ""} /></div>
       </div>
       <div className="row-actions">
         <button className="btn" type="submit">Save changes</button>
