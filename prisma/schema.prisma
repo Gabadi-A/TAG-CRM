@@ -117,6 +117,7 @@ model Project {
   nextStep      String?     @db.Text  // what to do next on the follow-up
   followUpDate  DateTime?             // when to follow up
   dueDate       DateTime?             // when the proposal needs to be submitted
+  proposalUrl   String?               // link to the proposal file (Dropbox / Excel / PDF)
   basecampProjectId String?           // linked Basecamp project/card id
   basecampUrl       String?           // linked Basecamp card/project web url
   basecampColumn    String?           // the Estimating card-table column (real board status)

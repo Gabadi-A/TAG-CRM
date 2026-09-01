@@ -79,6 +79,7 @@ export async function updateOpportunity(formData: FormData) {
       nextStep: s(formData, "nextStep") || null,
       followUpDate: s(formData, "followUpDate") ? new Date(s(formData, "followUpDate")) : null,
       dueDate: s(formData, "dueDate") ? new Date(s(formData, "dueDate")) : null,
+      proposalUrl: s(formData, "proposalUrl") || null,
     },
   });
   await syncQuotesToStage(id, stage);
@@ -156,4 +157,72 @@ export async function deleteContact(formData: FormData) {
   if (!c) return;
   await prisma.contact.delete({ where: { id } });
   revalidatePath(`/contractors/${c.contractorId}`);
+}
+
+/* ---------------- Quotes (per-trade money + status) ---------------- */
+export async function addQuote(formData: FormData) {
+  await requireAdmin();
+  const projectId = s(formData, "projectId");
+  if (!projectId) return;
+  await prisma.quote.create({
+    data: {
+      projectId,
+      trade: (s(formData, "trade") || "CABINETRY") as never,
+      version: parseInt(s(formData, "version"), 10) || 1,
+      value: money(s(formData, "value")),
+      status: (s(formData, "status") || "DRAFT") as never,
+    },
+  });
+  refreshOpps(projectId);
+}
+
+export async function updateQuote(formData: FormData) {
+  await requireAdmin();
+  const id = s(formData, "id");
+  const projectId = s(formData, "projectId");
+  await prisma.quote.update({
+    where: { id },
+    data: {
+      trade: s(formData, "trade") as never,
+      version: parseInt(s(formData, "version"), 10) || 1,
+      value: money(s(formData, "value")),
+      status: s(formData, "status") as never,
+    },
+  });
+  refreshOpps(projectId);
+}
+
+export async function deleteQuote(formData: FormData) {
+  await requireAdmin();
+  const id = s(formData, "id");
+  const projectId = s(formData, "projectId");
+  await prisma.quote.delete({ where: { id } });
+  refreshOpps(projectId);
+}
+
+/* ---------------- Takeoff status ---------------- */
+export async function setTakeoff(formData: FormData) {
+  await requireAdmin();
+  const id = s(formData, "id");
+  const projectId = s(formData, "projectId");
+  await prisma.takeoff.update({ where: { id }, data: { status: s(formData, "status") as never } });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function addTakeoff(formData: FormData) {
+  await requireAdmin();
+  const projectId = s(formData, "projectId");
+  if (!projectId) return;
+  await prisma.takeoff.create({
+    data: { projectId, trade: (s(formData, "trade") || "CABINETRY") as never, status: (s(formData, "status") || "PENDING") as never },
+  });
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteTakeoff(formData: FormData) {
+  await requireAdmin();
+  const id = s(formData, "id");
+  const projectId = s(formData, "projectId");
+  await prisma.takeoff.delete({ where: { id } });
+  revalidatePath(`/projects/${projectId}`);
 }

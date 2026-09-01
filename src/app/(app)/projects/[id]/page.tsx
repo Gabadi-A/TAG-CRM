@@ -2,12 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { STAGE_LABEL, fmt, pctColor, daysSince, TRADE_LABEL, QUOTE_STATUS, quoteNumber } from "@/lib/format";
-import { createProposal } from "@/lib/actions/proposals";
+import { STAGE_LABEL, fmt, pctColor, daysSince, TRADE_LABEL, QUOTE_STATUS, QUOTE_STATUS_KEYS, quoteNumber } from "@/lib/format";
 import { logContact, toggleFocus } from "@/lib/actions/projects";
+import { addQuote, updateQuote, deleteQuote, setTakeoff, addTakeoff, deleteTakeoff } from "@/lib/actions/records";
 import OpportunityEditor from "@/components/OpportunityEditor";
 
 export const dynamic = "force-dynamic";
+
+const TRADE_OPTS = Object.entries(TRADE_LABEL);
+const TAKEOFF_OPTS: [string, string][] = [["PENDING", "Pending"], ["IN_PROGRESS", "In progress"], ["READY", "Ready"]];
+const cell = { margin: 0 } as const;
 
 export default async function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,7 +25,6 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
       contact: true,
       takeoffs: true,
       quotes: { orderBy: { value: "desc" } },
-      proposals: { orderBy: { version: "desc" } },
     },
   });
   if (!p) notFound();
@@ -41,6 +44,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
           </form>
         )}
         {!isAdmin && p.focus && <span className="curated-badge">★ Team focus</span>}
+        {p.proposalUrl && <a className="btn ghost" href={p.proposalUrl} target="_blank" rel="noreferrer">⤓ Open proposal ↗</a>}
         {p.basecampUrl && <a className="btn ghost" href={p.basecampUrl} target="_blank" rel="noreferrer" style={{ background: "#1d2d35", color: "#fff", borderColor: "#1d2d35" }}>⬒ Open in Basecamp ↗</a>}
       </div>
       <p className="page-sub" style={{ marginTop: 6 }}>{p.contractor?.name || "—"} · {p.architect || "no architect"}{p.basecampColumn && <> · <span className="pill-note" style={{ background: "#eef1f5", color: "#41556e" }}>Estimating: {p.basecampColumn}</span></>}</p>
@@ -57,6 +61,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               nextStep: p.nextStep,
               followUpDate: p.followUpDate ? new Date(p.followUpDate).toISOString().slice(0, 10) : null,
               dueDate: p.dueDate ? new Date(p.dueDate).toISOString().slice(0, 10) : null,
+              proposalUrl: p.proposalUrl,
             }}
             contacts={contacts}
           />
@@ -70,7 +75,7 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             <div className="k">Contractor</div><div>{p.contractor ? <Link href={`/contractors/${p.contractor.id}`}>{p.contractor.name}</Link> : "—"}</div>
             <div className="k">GC contact</div><div>{p.contact ? <>{p.contact.name}{p.contact.email && <span className="muted"> · {p.contact.email}</span>}</> : <span className="muted">—</span>}</div>
             <div className="k">Owner</div><div>{p.ownerRep || "—"}</div>
-            <div className="k">Total value</div><div style={{ fontWeight: 700 }}>{fmt(oppValue || p.value)}</div>
+            <div className="k">Total value</div><div style={{ fontWeight: 700 }}>{fmt(oppValue || p.value)} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>(sum of quotes)</span></div>
             <div className="k">Closing %</div><div><span className="pct"><span className="dot" style={{ background: pctColor(p.closingPct) }} />{p.closingPct}%</span></div>
             <div className="k">Last contact</div>
             <div>
@@ -84,9 +89,9 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
             </div>
           </div>
 
-          <div className="sub-h">Quotes · trade · version</div>
-          {p.quotes.length === 0 && <div className="muted" style={{ fontSize: 13 }}>No quotes yet.</div>}
-          {p.quotes.map((q) => (
+          <div className="sub-h">Quotes <span className="muted" style={{ fontWeight: 400, textTransform: "none" }}>· trade · version · value · status</span></div>
+          {!isAdmin && p.quotes.length === 0 && <div className="muted" style={{ fontSize: 13 }}>No quotes yet.</div>}
+          {!isAdmin && p.quotes.map((q) => (
             <div className="trade-row" key={q.id}>
               <span><span className="mono">{quoteNumber(p.number, q.trade, q.version)}</span> · {TRADE_LABEL[q.trade]}</span>
               <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -95,31 +100,62 @@ export default async function ProjectDetail({ params }: { params: Promise<{ id: 
               </span>
             </div>
           ))}
-
-          <div className="sub-h">Takeoff status</div>
-          {p.takeoffs.length === 0 && <div className="muted" style={{ fontSize: 13 }}>No takeoffs yet.</div>}
-          {p.takeoffs.map((t) => (
-            <div className="trade-row" key={t.id}>
-              <span>{TRADE_LABEL[t.trade]}</span>
-              <span className={"tstat " + t.status}>{t.status.replace("_", " ")}</span>
+          {isAdmin && p.quotes.map((q) => (
+            <div key={q.id} style={{ marginBottom: 8 }}>
+              <form action={updateQuote} className="frow" style={{ gap: 6, alignItems: "flex-end", marginBottom: 3 }}>
+                <input type="hidden" name="id" value={q.id} /><input type="hidden" name="projectId" value={p.id} />
+                <div className="field" style={{ ...cell, flex: "1 1 130px" }}><select name="trade" defaultValue={q.trade}>{TRADE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+                <div className="field" style={{ ...cell, flex: "0 0 54px" }}><input name="version" type="number" min="1" defaultValue={q.version} /></div>
+                <div className="field" style={{ ...cell, flex: "0 0 100px" }}><input name="value" defaultValue={q.value} /></div>
+                <div className="field" style={{ ...cell, flex: "1 1 120px" }}><select name="status" defaultValue={q.status}>{QUOTE_STATUS_KEYS.map((k) => <option key={k} value={k}>{QUOTE_STATUS[k].label}</option>)}</select></div>
+                <button className="btn ghost" type="submit">Save</button>
+              </form>
+              <form action={deleteQuote}><input type="hidden" name="id" value={q.id} /><input type="hidden" name="projectId" value={p.id} /><button className="linkbtn" style={{ color: "#a52222" }} type="submit">Remove</button></form>
             </div>
           ))}
+          {isAdmin && (
+            <form action={addQuote} className="frow" style={{ gap: 6, alignItems: "flex-end", marginTop: 10 }}>
+              <input type="hidden" name="projectId" value={p.id} />
+              <div className="field" style={{ ...cell, flex: "1 1 130px" }}><label>Add quote</label><select name="trade">{TRADE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+              <div className="field" style={{ ...cell, flex: "0 0 54px" }}><input name="version" type="number" min="1" defaultValue={1} /></div>
+              <div className="field" style={{ ...cell, flex: "0 0 100px" }}><input name="value" placeholder="$ value" /></div>
+              <div className="field" style={{ ...cell, flex: "1 1 120px" }}><select name="status" defaultValue="DRAFT">{QUOTE_STATUS_KEYS.map((k) => <option key={k} value={k}>{QUOTE_STATUS[k].label}</option>)}</select></div>
+              <button className="btn" type="submit">Add</button>
+            </form>
+          )}
+
+          <div className="sub-h">Takeoff status</div>
+          {!isAdmin && p.takeoffs.length === 0 && <div className="muted" style={{ fontSize: 13 }}>No takeoffs yet.</div>}
+          {!isAdmin && p.takeoffs.map((t) => (
+            <div className="trade-row" key={t.id}><span>{TRADE_LABEL[t.trade]}</span><span className={"tstat " + t.status}>{t.status.replace("_", " ")}</span></div>
+          ))}
+          {isAdmin && p.takeoffs.map((t) => (
+            <div key={t.id} className="frow" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
+              <span style={{ flex: "1 1 120px", fontSize: 13 }}>{TRADE_LABEL[t.trade]}</span>
+              <form action={setTakeoff} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input type="hidden" name="id" value={t.id} /><input type="hidden" name="projectId" value={p.id} />
+                <select name="status" defaultValue={t.status} className="pill-note" style={{ padding: "4px 8px" }}>{TAKEOFF_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+                <button className="btn ghost" type="submit">Save</button>
+              </form>
+              <form action={deleteTakeoff}><input type="hidden" name="id" value={t.id} /><input type="hidden" name="projectId" value={p.id} /><button className="linkbtn" style={{ color: "#a52222" }} type="submit">✕</button></form>
+            </div>
+          ))}
+          {isAdmin && (
+            <form action={addTakeoff} className="frow" style={{ gap: 6, alignItems: "flex-end", marginTop: 8 }}>
+              <input type="hidden" name="projectId" value={p.id} />
+              <div className="field" style={{ ...cell, flex: "1 1 130px" }}><label>Add takeoff</label><select name="trade">{TRADE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+              <div className="field" style={{ ...cell, flex: "1 1 120px" }}><select name="status" defaultValue="PENDING">{TAKEOFF_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+              <button className="btn" type="submit">Add</button>
+            </form>
+          )}
         </div>
 
         <div className="card">
-          <div className="sub-h" style={{ marginTop: 0 }}>Proposals</div>
-          {p.proposals.length === 0 && <div className="muted" style={{ fontSize: 13, marginBottom: 10 }}>No proposals yet.</div>}
-          {p.proposals.map((pr) => (
-            <Link key={pr.id} href={`/proposals/${pr.id}`} className="trade-row" style={{ display: "flex" }}>
-              <span>{pr.quoteNumber} <span className="muted">· {pr.status}</span></span>
-              <span className="val-sm">{new Date(pr.updatedAt).toLocaleDateString("en-US")}</span>
-            </Link>
-          ))}
-          {isAdmin && (
-            <form action={createProposal} style={{ marginTop: 12 }}>
-              <input type="hidden" name="projectId" value={p.id} />
-              <button className="btn" type="submit">+ New proposal</button>
-            </form>
+          <div className="sub-h" style={{ marginTop: 0 }}>Proposal</div>
+          {p.proposalUrl ? (
+            <a className="btn" href={p.proposalUrl} target="_blank" rel="noreferrer">⤓ Open proposal ↗</a>
+          ) : (
+            <div className="muted" style={{ fontSize: 13 }}>No proposal attached.{isAdmin && " Paste the Dropbox link in “Edit details” above."}</div>
           )}
 
           <div className="sub-h">Notes</div>

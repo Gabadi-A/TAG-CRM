@@ -9,7 +9,7 @@ type P = {
   id: string; name: string; gc: string; contactId: string | null;
   architect: string | null; ownerRep: string | null; stage: string;
   closingPct: number; value: number | null; lastContact: string | null; notes: string | null;
-  nextStep: string | null; followUpDate: string | null; dueDate: string | null;
+  nextStep: string | null; followUpDate: string | null; dueDate: string | null; proposalUrl: string | null;
 };
 
 export default function OpportunityEditor({ p, contacts }: { p: P; contacts: Contact[] }) {
@@ -40,6 +40,7 @@ export default function OpportunityEditor({ p, contacts }: { p: P; contacts: Con
         <div className="field"><label>Value ($)</label><input name="value" defaultValue={p.value ?? ""} /></div>
         <div className="field"><label>Last contact</label><input name="lastContact" type="date" defaultValue={p.lastContact || ""} /></div>
       </div>
+      <div className="field"><label>Proposal link (Dropbox / Excel / PDF)</label><input name="proposalUrl" defaultValue={p.proposalUrl || ""} placeholder="Paste the Dropbox link to the proposal" /></div>
       <div className="field"><label>Notes</label><textarea name="notes" defaultValue={p.notes || ""} /></div>
       <div className="frow">
         <div className="field" style={{ flex: "2 1 240px" }}><label>Next step</label><input name="nextStep" defaultValue={p.nextStep || ""} placeholder="e.g. Ask about the January start date" /></div>
