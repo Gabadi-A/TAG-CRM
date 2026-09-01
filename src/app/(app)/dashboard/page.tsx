@@ -72,6 +72,18 @@ export default async function DashboardPage() {
     });
   const urgent = followUps.slice(0, 5);
 
+  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+  const weekEnd = todayMid.getTime() + 7 * 86400000;
+  const dueThisWeek = active
+    .filter((p) => p.dueDate)
+    .map((p) => {
+      const ddMid = new Date(p.dueDate as Date).setHours(0, 0, 0, 0);
+      return { p, ddMid, days: Math.round((ddMid - todayMid.getTime()) / 86400000) };
+    })
+    .filter((x) => x.ddMid <= weekEnd)
+    .sort((a, b) => a.ddMid - b.ddMid)
+    .slice(0, 6);
+
   return (
     <div className="section">
       <h1 className="page">Sales dashboard</h1>
@@ -142,6 +154,28 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {dueThisWeek.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <h3 style={{ margin: 0 }}>Proposals due this week</h3>
+            <Link href="/calendar" className="pill-note">Calendar →</Link>
+          </div>
+          <p className="h-sub" style={{ marginTop: 6 }}>Proposal deadlines in the next 7 days — and anything already overdue.</p>
+          {dueThisWeek.map(({ p, ddMid, days }) => (
+            <div className="focus-row" key={p.id}>
+              <Link className="focus-main" href={`/projects/${p.id}`}>
+                <span className="close-badge" style={{ color: days <= 1 ? "#c0392b" : "#8a5a00", fontSize: 14 }}>{days < 0 ? `${-days}d late` : days === 0 ? "today" : `${days}d`}</span>
+                <span>
+                  <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
+                  <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · due {new Date(ddMid).toISOString().slice(0, 10)}</div>
+                </span>
+                <span className="num-cell" style={{ fontWeight: 700 }}>{fmtK(oppValue(p))}</span>
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid-2">
         <div className="card">
