@@ -62,14 +62,8 @@ export default async function DashboardPage() {
   if (!curated) focusList = focusList.slice(0, 6);
 
   const followUps = active
-    .map((p) => ({ p, d: daysSince(p.lastContact) }))
-    .filter((x) => x.d == null || x.d > 30 || x.p.followUpDate != null)
-    .sort((a, b) => {
-      const fa = a.p.followUpDate ? new Date(a.p.followUpDate).getTime() : Infinity;
-      const fb = b.p.followUpDate ? new Date(b.p.followUpDate).getTime() : Infinity;
-      if (fa !== fb) return fa - fb;
-      return (b.d == null ? 1e9 : b.d) - (a.d == null ? 1e9 : a.d);
-    });
+    .filter((p) => p.followUpDate != null)
+    .sort((a, b) => new Date(a.followUpDate as Date).getTime() - new Date(b.followUpDate as Date).getTime());
   const urgent = followUps.slice(0, 5);
 
   const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
@@ -138,21 +132,26 @@ export default async function DashboardPage() {
           <h3 style={{ margin: 0 }}>Needs a follow-up</h3>
           <Link href="/follow-ups" className="pill-note">See all {followUps.length} →</Link>
         </div>
-        <p className="h-sub" style={{ marginTop: 6 }}>Opportunities with no contact in 30+ days — reach out before they go cold.</p>
-        {urgent.length === 0 && <div className="muted" style={{ fontSize: 13 }}>All caught up — nothing older than 30 days.</div>}
-        {urgent.map(({ p, d }) => (
-          <div className="focus-row" key={p.id}>
-            <Link className="focus-main" href={`/projects/${p.id}`}>
-              <span className="close-badge" style={{ color: "#c0392b" }}>{d == null ? "—" : d + "d"}</span>
-              <span>
-                <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
-                <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · {d == null ? "no email logged" : "quiet"}</div>
-                {p.nextStep && <div style={{ fontSize: 12, color: "var(--brand)", marginTop: 2 }}>Next: {p.nextStep}</div>}
-              </span>
-              <span className="num-cell" style={{ fontWeight: 700 }}>{fmtK(oppValue(p))}</span>
-            </Link>
-          </div>
-        ))}
+        <p className="h-sub" style={{ marginTop: 6 }}>Scheduled follow-ups, soonest first.</p>
+        {urgent.length === 0 && <div className="muted" style={{ fontSize: 13 }}>No scheduled follow-ups. Set a follow-up date on an opportunity and it&apos;ll show up here.</div>}
+        {urgent.map((p) => {
+          const fd = new Date(p.followUpDate as Date); fd.setHours(0, 0, 0, 0);
+          const days = Math.round((fd.getTime() - todayMid.getTime()) / 86400000);
+          const label = days < 0 ? `${-days}d late` : days === 0 ? "today" : `${days}d`;
+          return (
+            <div className="focus-row" key={p.id}>
+              <Link className="focus-main" href={`/projects/${p.id}`}>
+                <span className="close-badge" style={{ color: days <= 1 ? "#c0392b" : "#8a5a00", fontSize: 14 }}>{label}</span>
+                <span>
+                  <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
+                  <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · follow up {fd.toISOString().slice(0, 10)}</div>
+                  {p.nextStep && <div style={{ fontSize: 12, color: "var(--brand)", marginTop: 2 }}>Next: {p.nextStep}</div>}
+                </span>
+                <span className="num-cell" style={{ fontWeight: 700 }}>{fmtK(oppValue(p))}</span>
+              </Link>
+            </div>
+          );
+        })}
       </div>
 
       {dueThisWeek.length > 0 && (

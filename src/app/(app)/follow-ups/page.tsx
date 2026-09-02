@@ -25,7 +25,7 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
   const rows = projects
     .filter((p) => p.stage !== "SOLD" && p.stage !== "DEAD")
     .map((p) => ({ p, d: daysSince(p.lastContact) }))
-    .filter((x) => x.d == null || x.d > 30 || x.p.followUpDate != null)
+    .filter((x) => x.p.followUpDate != null)
     .sort((a, b) => {
       const fa = a.p.followUpDate ? new Date(a.p.followUpDate).getTime() : Infinity;
       const fb = b.p.followUpDate ? new Date(b.p.followUpDate).getTime() : Infinity;
@@ -71,7 +71,7 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
   return (
     <div className="section">
       <h1 className="page">Follow-ups</h1>
-      <p className="page-sub">Anything overdue (no contact in 30+ days) or with a scheduled follow-up. Add a <b>next step</b> so everyone knows what to do.</p>
+      <p className="page-sub">Opportunities with a scheduled follow-up date, soonest first. Set a <b>follow-up date</b> and a <b>next step</b> on any opportunity to have it show up here.</p>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         <Link href="/follow-ups" className={isCal ? "btn ghost" : "btn"}>List</Link>
