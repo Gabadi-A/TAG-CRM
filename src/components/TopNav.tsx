@@ -8,7 +8,6 @@ import { doSignOut } from "@/lib/actions/session";
 export default function TopNav({ name, isAdmin }: { name?: string | null; isAdmin?: boolean }) {
   const LINKS: [string, string][] = [
     ["/dashboard", "Dashboard"],
-    ["/quotes", "Quotes"],
     ["/projects", "Opportunities"],
     ["/contractors", "Contractors"],
     ["/follow-ups", "Follow-ups"],

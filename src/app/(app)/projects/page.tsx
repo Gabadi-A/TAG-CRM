@@ -12,9 +12,9 @@ const oppValue = (p: { quotes: QuoteLite[] }) => p.quotes.reduce((s, q) => s + (
 export default async function ProjectsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; gc?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; gc?: string; sort?: string; dir?: string; quoted?: string }>;
 }) {
-  const { q = "", gc = "", sort = "closing", dir = "desc" } = await searchParams;
+  const { q = "", gc = "", sort = "closing", dir = "desc", quoted = "" } = await searchParams;
   const session = await auth();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
@@ -26,7 +26,8 @@ export default async function ProjectsPage({
   const mapped = projects
     .filter((p) => {
       const hay = `${p.number} ${p.name} ${p.contractor?.name || ""} ${p.ownerRep || ""}`.toLowerCase();
-      return (!q || hay.includes(ql)) && (!gc || p.contractor?.name === gc);
+      const quotedOk = quoted === "no" ? p.quotes.length === 0 : quoted === "yes" ? p.quotes.length > 0 : true;
+      return (!q || hay.includes(ql)) && (!gc || p.contractor?.name === gc) && quotedOk;
     })
     .map((p) => ({
       p,
@@ -58,6 +59,7 @@ export default async function ProjectsPage({
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (gc) params.set("gc", gc);
+    if (quoted) params.set("quoted", quoted);
     params.set("sort", k);
     params.set("dir", active ? (dir === "asc" ? "desc" : "asc") : numericCols.includes(k) ? "desc" : "asc");
     const arrow = active ? (dir === "desc" ? " ▼" : " ▲") : "";
@@ -68,10 +70,18 @@ export default async function ProjectsPage({
     );
   };
 
+  const notQuoted = projects.filter((p) => p.quotes.length === 0 && p.stage !== "DEAD" && p.stage !== "SOLD").length;
+
   return (
     <div className="section">
       <h1 className="page">Opportunities</h1>
-      <p className="page-sub">The master list. Click any column heading to sort it — click again to flip the order. Star an opportunity to pin it to the team&apos;s focus board.</p>
+      <p className="page-sub">The master list — every opportunity and its quotes in one place. Click any column heading to sort it — click again to flip the order. Star an opportunity to pin it to the team&apos;s focus board.</p>
+      {notQuoted > 0 && (
+        <div className="banner" style={{ background: "#fff4e0", borderColor: "#e4b55a" }}>
+          ⚠ {notQuoted} active {notQuoted === 1 ? "opportunity has" : "opportunities have"} no quote yet.{" "}
+          <Link href="/projects?quoted=no" style={{ fontWeight: 700 }}>Show the ones that need quoting →</Link>
+        </div>
+      )}
       <form className="toolbar" method="get">
         <input name="q" placeholder="Search project, #, GC, rep…" defaultValue={q} />
         <select name="gc" defaultValue={gc}>
@@ -79,6 +89,11 @@ export default async function ProjectsPage({
           {contractors.map((c) => (
             <option key={c.id} value={c.name}>{c.name}</option>
           ))}
+        </select>
+        <select name="quoted" defaultValue={quoted}>
+          <option value="">Quoted &amp; not quoted</option>
+          <option value="no">Not quoted yet</option>
+          <option value="yes">Has a quote</option>
         </select>
         <button className="btn ghost" type="submit">Filter</button>
         <span className="pill-note">{mapped.length} opportunities</span>
@@ -113,7 +128,7 @@ export default async function ProjectsPage({
                 <td>{p.contractor?.name || "—"}</td>
                 <td>{p.ownerRep || "—"}</td>
                 <td><span className="pill-note">{STAGE_LABEL[p.stage]}</span></td>
-                <td className="num-cell">{p.quotes.length}{won > 0 && <span style={{ color: "#1c6b1c" }}> ·{won}W</span>}{lost > 0 && <span style={{ color: "#a52222" }}> ·{lost}L</span>}</td>
+                <td className="num-cell">{p.quotes.length === 0 ? <span className="tag-nq">Not quoted</span> : <>{p.quotes.length}{won > 0 && <span style={{ color: "#1c6b1c" }}> ·{won}W</span>}{lost > 0 && <span style={{ color: "#a52222" }}> ·{lost}L</span>}</>}</td>
                 <td className="num-cell"><span className="pct" style={{ justifyContent: "flex-end" }}><span className="dot" style={{ background: pctColor(p.closingPct) }} />{p.closingPct}%</span></td>
                 <td className="num-cell">{fmt(oppValue(p) || p.value)}</td>
               </tr>
