@@ -4,8 +4,11 @@ import { auth } from "@/auth";
 import { STAGE_LABEL, fmtK, daysSince } from "@/lib/format";
 import { logContact } from "@/lib/actions/projects";
 import { setNextStep } from "@/lib/actions/records";
+import { sendWeeklyFollowupsNow } from "@/lib/actions/email";
 
 export const dynamic = "force-dynamic";
+
+const DIGEST_TO = process.env.FOLLOWUP_EMAIL_TO || "julieta.chi@theabadigroup.com";
 
 const inputStyle = {
   border: "1px solid var(--line-2)", borderRadius: 9, padding: "7px 9px",
@@ -14,8 +17,8 @@ const inputStyle = {
 const pad = (n: number) => String(n).padStart(2, "0");
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default async function FollowUpsPage({ searchParams }: { searchParams: Promise<{ view?: string; month?: string }> }) {
-  const { view = "list", month = "" } = await searchParams;
+export default async function FollowUpsPage({ searchParams }: { searchParams: Promise<{ view?: string; month?: string; sent?: string; n?: string; msg?: string }> }) {
+  const { view = "list", month = "", sent = "", n = "", msg = "" } = await searchParams;
   const isCal = view === "calendar";
   const session = await auth();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
@@ -73,17 +76,26 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
       <h1 className="page">Follow-ups</h1>
       <p className="page-sub">Opportunities with a scheduled follow-up date, soonest first. Set a <b>follow-up date</b> and a <b>next step</b> on any opportunity to have it show up here.</p>
 
+      {sent === "ok" && <div className="banner" style={{ background: "#e7f5e7", borderColor: "#9fcf9f" }}>✓ Sent {n ? `${n} follow-up${n === "1" ? "" : "s"}` : "the digest"} to {DIGEST_TO}.</div>}
+      {sent === "none" && <div className="banner">No follow-ups are due this week — nothing was sent.</div>}
+      {sent === "err" && <div className="banner" style={{ background: "#fbe6e6", borderColor: "#e0a3a3" }}>Couldn&apos;t send the email{msg ? `: ${msg}` : ""}. Check GMAIL_USER and GMAIL_APP_PASSWORD in Vercel.</div>}
+      {sent === "forbidden" && <div className="banner" style={{ background: "#fbe6e6", borderColor: "#e0a3a3" }}>Only admins can send the digest.</div>}
+
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         <Link href="/follow-ups" className={isCal ? "btn ghost" : "btn"}>List</Link>
         <Link href="/follow-ups?view=calendar" className={isCal ? "btn" : "btn ghost"}>Calendar</Link>
         {isCal && (
           <>
-            <div style={{ flex: 1 }} />
             <Link href={`/follow-ups?view=calendar&month=${prevM}`} className="btn ghost">←</Link>
             <span style={{ fontWeight: 700, minWidth: 150, textAlign: "center" }}>{monthLabel}</span>
             <Link href={`/follow-ups?view=calendar&month=${nextM}`} className="btn ghost">→</Link>
             <Link href="/follow-ups?view=calendar" className="pill-note">Today</Link>
           </>
+        )}
+        {isAdmin && (
+          <form action={sendWeeklyFollowupsNow} style={{ marginLeft: "auto" }}>
+            <button className="btn" type="submit" title={`Email this week's follow-ups to ${DIGEST_TO} now`}>✉ Send digest now</button>
+          </form>
         )}
       </div>
 
