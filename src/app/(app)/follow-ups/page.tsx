@@ -5,6 +5,8 @@ import { STAGE_LABEL, fmtK, daysSince } from "@/lib/format";
 import { logContact } from "@/lib/actions/projects";
 import { setNextStep } from "@/lib/actions/records";
 import { sendWeeklyFollowupsNow } from "@/lib/actions/email";
+import { addTask, toggleTask, deleteTask, saveTask } from "@/lib/actions/tasks";
+import FollowUpCalendar, { type CalItem } from "@/components/FollowUpCalendar";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,6 @@ const inputStyle = {
   fontSize: 13, fontFamily: "inherit", background: "var(--paper)",
 } as const;
 const pad = (n: number) => String(n).padStart(2, "0");
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default async function FollowUpsPage({ searchParams }: { searchParams: Promise<{ view?: string; month?: string; sent?: string; n?: string; msg?: string }> }) {
   const { view = "list", month = "", sent = "", n = "", msg = "" } = await searchParams;
@@ -23,6 +24,38 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
   const session = await auth();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
   const projects = await prisma.project.findMany({ include: { contractor: true, quotes: true } });
+  const tasks = await prisma.task.findMany({ orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }] });
+  const openTasks = tasks.filter((t) => !t.done);
+  const doneTasks = tasks.filter((t) => t.done);
+  const taskDate = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
+
+  const renderTaskRow = (t: (typeof tasks)[number]) =>
+    isAdmin ? (
+      <div key={t.id} className="focus-row" style={{ alignItems: "center", gap: 8 }}>
+        <form action={toggleTask}>
+          <input type="hidden" name="id" value={t.id} />
+          <button className="btn ghost" type="submit" title={t.done ? "Mark not done" : "Mark done"}>{t.done ? "☑" : "☐"}</button>
+        </form>
+        <form action={saveTask} style={{ display: "flex", gap: 8, flex: "1 1 320px", flexWrap: "wrap", alignItems: "center" }}>
+          <input type="hidden" name="id" value={t.id} />
+          <input name="title" defaultValue={t.title} style={{ ...inputStyle, flex: "1 1 200px", textDecoration: t.done ? "line-through" : "none" }} />
+          <input name="owner" defaultValue={t.owner || ""} placeholder="Owner" style={{ ...inputStyle, width: 120 }} />
+          <input name="dueDate" type="date" defaultValue={taskDate(t.dueDate)} style={inputStyle} />
+          <button className="btn ghost" type="submit">Save</button>
+        </form>
+        <form action={deleteTask}>
+          <input type="hidden" name="id" value={t.id} />
+          <button className="btn ghost danger-btn" type="submit" title="Delete to-do">✕</button>
+        </form>
+      </div>
+    ) : (
+      <div key={t.id} className="focus-row" style={{ alignItems: "center" }}>
+        <div style={{ flex: 1 }}>
+          <span style={{ fontWeight: 600, textDecoration: t.done ? "line-through" : "none" }}>{t.title}</span>
+          <span className="muted" style={{ fontSize: 12 }}> {t.owner ? `· ${t.owner} ` : ""}{t.dueDate ? `· due ${taskDate(t.dueDate)}` : "· no date"}</span>
+        </div>
+      </div>
+    );
 
   const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
   const rows = projects
@@ -47,13 +80,20 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
     return { text: d == null ? "No email logged" : `${d} days quiet`, color: "#c0392b" };
   }
 
-  // --- calendar data ---
+  // --- calendar data (opportunity follow-ups + standalone to-dos) ---
   const scheduled = projects.filter((p) => p.stage !== "SOLD" && p.stage !== "DEAD" && p.followUpDate);
-  const byDate: Record<string, typeof projects> = {};
+  const scheduledTasks = tasks.filter((t) => t.dueDate != null);
+  const itemsByDate: Record<string, CalItem[]> = {};
+  const pushItem = (key: string, it: CalItem) => { (itemsByDate[key] = itemsByDate[key] || []).push(it); };
   for (const p of scheduled) {
     const key = new Date(p.followUpDate as Date).toISOString().slice(0, 10);
-    (byDate[key] = byDate[key] || []).push(p);
+    pushItem(key, { id: p.id, kind: "fu", label: p.name, href: `/projects/${p.id}`, title: p.name + (p.nextStep ? ` — ${p.nextStep}` : "") });
   }
+  for (const t of scheduledTasks) {
+    const key = new Date(t.dueDate as Date).toISOString().slice(0, 10);
+    pushItem(key, { id: t.id, kind: "task", label: t.title, title: t.title + (t.note ? ` — ${t.note}` : ""), done: t.done });
+  }
+  const calCount = scheduled.length + scheduledTasks.length;
   const nowD = new Date();
   let year = nowD.getUTCFullYear();
   let monthIdx = nowD.getUTCMonth();
@@ -69,7 +109,6 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
   const cells: ({ day: number; key: string } | null)[] = [];
   for (let i = 0; i < startDow; i++) cells.push(null);
   for (let day = 1; day <= daysInMonth; day++) cells.push({ day, key: `${year}-${pad(monthIdx + 1)}-${pad(day)}` });
-  const undated = rows.filter((r) => !r.p.followUpDate).length;
 
   return (
     <div className="section">
@@ -101,29 +140,41 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
 
       {isCal ? (
         <>
-          <div className="table-wrap">
-            <div className="cal-grid">
-              {DOW.map((d) => <div key={d} className="cal-dow">{d}</div>)}
-              {cells.map((c, i) => {
-                if (!c) return <div key={i} className="cal-cell empty" />;
-                const items = byDate[c.key] || [];
-                const isToday = c.key === todayKey;
-                const isPast = c.key < todayKey;
-                return (
-                  <div key={i} className={"cal-cell" + (isToday ? " today" : "") + (isPast ? " past" : "")}>
-                    <div className="cal-daynum">{c.day}</div>
-                    {items.map((p) => (
-                      <Link key={p.id} href={`/projects/${p.id}`} className={"cal-item" + (isPast ? " overdue" : "")} title={p.name + (p.nextStep ? ` — ${p.nextStep}` : "")}>{p.name}</Link>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
+          <FollowUpCalendar cells={cells} itemsByDate={itemsByDate} todayKey={todayKey} canEdit={isAdmin} />
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: "#2f6fb0", display: "inline-block" }} />Opportunity follow-up</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: "#1c7a4a", display: "inline-block" }} />To-do</span>
+            {isAdmin && <span className="muted" style={{ fontSize: 12 }}>Drag any item to another day to reschedule it.</span>}
           </div>
-          <p className="page-sub" style={{ marginTop: 12 }}>{scheduled.length} scheduled follow-up{scheduled.length === 1 ? "" : "s"} shown{undated ? ` · ${undated} overdue with no date — see the List view` : ""}.</p>
+          <p className="page-sub" style={{ marginTop: 8 }}>{calCount} scheduled item{calCount === 1 ? "" : "s"} shown.</p>
         </>
       ) : (
         <>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <h3 style={{ marginTop: 0 }}>Follow-up to-dos <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>— reminders that aren&apos;t tied to an opportunity</span></h3>
+            {isAdmin && (
+              <form action={addTask} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: tasks.length ? 12 : 0 }}>
+                <input name="title" placeholder="What to do — e.g. Call Mega about pricing" required style={{ ...inputStyle, flex: "1 1 260px" }} />
+                <input name="owner" placeholder="Owner (optional)" style={{ ...inputStyle, width: 150 }} />
+                <input name="dueDate" type="date" style={inputStyle} />
+                <button className="btn" type="submit">+ Add to-do</button>
+              </form>
+            )}
+            {tasks.length === 0 ? (
+              <p className="muted" style={{ margin: 0 }}>No to-dos yet.{isAdmin ? " Add one above." : ""}</p>
+            ) : (
+              <>
+                {openTasks.map(renderTaskRow)}
+                {openTasks.length === 0 && <p className="muted" style={{ margin: "4px 0" }}>All to-dos done. 🎉</p>}
+                {doneTasks.length > 0 && (
+                  <details style={{ marginTop: 8 }}>
+                    <summary className="muted" style={{ cursor: "pointer", fontSize: 13 }}>{doneTasks.length} completed</summary>
+                    <div style={{ marginTop: 6 }}>{doneTasks.map(renderTaskRow)}</div>
+                  </details>
+                )}
+              </>
+            )}
+          </div>
           <div className="banner">⚑ {rows.length} opportunities to work — combined open value {fmtK(totalVal)}.</div>
           {rows.map(({ p, d }) => {
             const label = due(p, d);

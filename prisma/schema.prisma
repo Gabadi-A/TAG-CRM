@@ -65,6 +65,19 @@ model Activity {
   @@index([createdAt])
 }
 
+// Standalone follow-up to-do — a reminder/task that is NOT an opportunity.
+model Task {
+  id        String    @id @default(cuid())
+  title     String
+  note      String?   @db.Text
+  owner     String?   // who should handle it
+  dueDate   DateTime? // the follow-up date (shown on the Follow-ups tab + calendar)
+  done      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([dueDate])
+}
+
 model Integration {
   id           String   @id @default(cuid())
   provider     String   @unique  // "basecamp"
