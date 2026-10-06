@@ -72,12 +72,14 @@ export async function deleteTask(formData: FormData) {
   refresh();
 }
 
-/** Used by the drag-and-drop calendar: moves a follow-up (opportunity) or a to-do to a new date. */
+/** Used by the drag-and-drop calendar: moves a to-do, a follow-up, or a proposal-due date. */
 export async function moveCalendarItem(kind: string, id: string, dateISO: string) {
   await requireAdmin();
   const date = new Date(`${dateISO}T12:00:00Z`);
   if (kind === "task") {
     await prisma.task.update({ where: { id }, data: { dueDate: date } });
+  } else if (kind === "due") {
+    await prisma.project.update({ where: { id }, data: { dueDate: date } });
   } else {
     await prisma.project.update({ where: { id }, data: { followUpDate: date } });
   }

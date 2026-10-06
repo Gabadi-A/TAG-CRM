@@ -6,10 +6,11 @@ import { moveCalendarItem } from "@/lib/actions/tasks";
 
 export type CalItem = {
   id: string;
-  kind: "fu" | "task";
+  kind: "fu" | "task" | "due";
   label: string;
   href?: string;
   title?: string;
+  icon?: string;
   done?: boolean;
 };
 type Cell = { day: number; key: string } | null;
@@ -29,16 +30,15 @@ export default function FollowUpCalendar({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [dragId, setDragId] = useState<string | null>(null);
   const [overKey, setOverKey] = useState<string | null>(null);
 
-  function onDrop(targetKey: string) {
+  function onDrop(e: DragEvent<HTMLElement>, targetKey: string) {
+    e.preventDefault();
     setOverKey(null);
-    const raw = dragId;
-    setDragId(null);
+    const raw = e.dataTransfer.getData("text/plain");
     if (!raw) return;
     const [kind, id, fromKey] = raw.split("|");
-    if (fromKey === targetKey) return; // dropped on the same day — nothing to do
+    if (!id || fromKey === targetKey) return; // same day — nothing to do
     start(async () => {
       await moveCalendarItem(kind, id, targetKey);
       router.refresh();
@@ -65,26 +65,28 @@ export default function FollowUpCalendar({
                 (isPast ? " past" : "") +
                 (overKey === c.key ? " dragover" : "")
               }
-              onDragOver={canEdit ? (e) => { e.preventDefault(); setOverKey(c.key); } : undefined}
+              onDragOver={canEdit ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (overKey !== c.key) setOverKey(c.key); } : undefined}
               onDragLeave={canEdit ? () => setOverKey((k) => (k === c.key ? null : k)) : undefined}
-              onDrop={canEdit ? (e) => { e.preventDefault(); onDrop(c.key); } : undefined}
+              onDrop={canEdit ? (e) => onDrop(e, c.key) : undefined}
             >
               <div className="cal-daynum">{c.day}</div>
               {items.map((it) => {
                 const cls =
                   "cal-item " + it.kind + (isPast && !it.done ? " overdue" : "") + (it.done ? " done" : "");
+                const text = (it.icon ? it.icon + " " : "") + it.label;
                 const common = {
                   draggable: canEdit,
                   onDragStart: canEdit
-                    ? (e: DragEvent<HTMLElement>) => { setDragId(`${it.kind}|${it.id}|${c.key}`); e.dataTransfer.effectAllowed = "move"; }
+                    ? (e: DragEvent<HTMLElement>) => { e.dataTransfer.setData("text/plain", `${it.kind}|${it.id}|${c.key}`); e.dataTransfer.effectAllowed = "move"; }
                     : undefined,
-                  onDragEnd: () => { setDragId(null); setOverKey(null); },
+                  onDragEnd: () => setOverKey(null),
                   title: (it.title || it.label) + (canEdit ? " — drag to another day to reschedule" : ""),
                 };
+                const k = it.kind + it.id;
                 return it.href ? (
-                  <a key={it.id} href={it.href} className={cls} {...common}>{it.label}</a>
+                  <a key={k} href={it.href} className={cls} {...common}>{text}</a>
                 ) : (
-                  <div key={it.id} className={cls} {...common}>{it.label}</div>
+                  <div key={k} className={cls} {...common}>{text}</div>
                 );
               })}
             </div>

@@ -23,6 +23,7 @@
 .cal-legend i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid}
 .cal-legend i.fu{background:#e9f0fb;border-color:#cfe0f6}
 .cal-legend i.due{background:#fdeede;border-color:#f3d9b8}
+.cal-legend i.task{background:#e6f4ec;border-color:#bfe3cd}
 
 :root{
   --brand:#9e5023; --brand-dk:#7a3d18; --brand-accent:#c17a45;

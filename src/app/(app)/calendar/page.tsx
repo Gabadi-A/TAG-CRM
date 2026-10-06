@@ -1,27 +1,36 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import FollowUpCalendar, { type CalItem } from "@/components/FollowUpCalendar";
 
 export const dynamic = "force-dynamic";
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-type Ev = { key: string; type: "fu" | "due"; name: string; id: string; title: string };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month = "" } = await searchParams;
+  const session = await auth();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
-  const projects = await prisma.project.findMany({
-    where: { stage: { notIn: ["SOLD", "DEAD"] as never }, OR: [{ followUpDate: { not: null } }, { dueDate: { not: null } }] },
-    select: { id: true, name: true, followUpDate: true, dueDate: true, nextStep: true },
-  });
+  const [projects, tasks] = await Promise.all([
+    prisma.project.findMany({
+      where: { stage: { notIn: ["SOLD", "DEAD"] as never }, OR: [{ followUpDate: { not: null } }, { dueDate: { not: null } }] },
+      select: { id: true, name: true, followUpDate: true, dueDate: true, nextStep: true },
+    }),
+    prisma.task.findMany({ where: { dueDate: { not: null } } }),
+  ]);
 
-  const byDate: Record<string, Ev[]> = {};
-  const add = (e: Ev) => { (byDate[e.key] = byDate[e.key] || []).push(e); };
+  const itemsByDate: Record<string, CalItem[]> = {};
+  const add = (key: string, it: CalItem) => { (itemsByDate[key] = itemsByDate[key] || []).push(it); };
   for (const p of projects) {
-    if (p.followUpDate) add({ key: new Date(p.followUpDate).toISOString().slice(0, 10), type: "fu", name: p.name, id: p.id, title: p.nextStep || "Follow up" });
-    if (p.dueDate) add({ key: new Date(p.dueDate).toISOString().slice(0, 10), type: "due", name: p.name, id: p.id, title: "Proposal due" });
+    if (p.dueDate) add(new Date(p.dueDate).toISOString().slice(0, 10), { id: p.id, kind: "due", label: p.name, href: `/projects/${p.id}`, title: `${p.name} — Proposal due`, icon: "⏰" });
+    if (p.followUpDate) add(new Date(p.followUpDate).toISOString().slice(0, 10), { id: p.id, kind: "fu", label: p.name, href: `/projects/${p.id}`, title: `${p.name} — ${p.nextStep || "Follow up"}`, icon: "📞" });
   }
-  for (const k of Object.keys(byDate)) byDate[k].sort((a) => (a.type === "due" ? -1 : 1));
+  for (const t of tasks) {
+    add(new Date(t.dueDate as Date).toISOString().slice(0, 10), { id: t.id, kind: "task", label: t.title, title: t.title + (t.note ? ` — ${t.note}` : ""), icon: "📌", done: t.done });
+  }
+  const order = { due: 0, fu: 1, task: 2 } as const;
+  for (const k of Object.keys(itemsByDate)) itemsByDate[k].sort((a, b) => order[a.kind] - order[b.kind]);
 
   const nowD = new Date();
   let year = nowD.getUTCFullYear();
@@ -42,7 +51,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <div className="section">
       <h1 className="page">Calendar</h1>
-      <p className="page-sub">Proposal due dates and scheduled follow-ups in one place. Click any item to open the opportunity.</p>
+      <p className="page-sub">Proposal due dates, scheduled follow-ups, and to-dos in one place. Click an opportunity item to open it{isAdmin ? ", or drag any item to another day to reschedule it" : ""}.</p>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
         <Link href={`/calendar?month=${prevM}`} className="btn ghost">←</Link>
@@ -50,27 +59,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <Link href={`/calendar?month=${nextM}`} className="btn ghost">→</Link>
         <Link href="/calendar" className="pill-note">Today</Link>
       </div>
-      <div className="cal-legend"><span><i className="due" /> Proposal due</span><span><i className="fu" /> Follow-up</span></div>
+      <div className="cal-legend"><span><i className="due" /> Proposal due</span><span><i className="fu" /> Follow-up</span><span><i className="task" /> To-do</span></div>
 
-      <div className="table-wrap">
-        <div className="cal-grid">
-          {DOW.map((d) => <div key={d} className="cal-dow">{d}</div>)}
-          {cells.map((c, i) => {
-            if (!c) return <div key={i} className="cal-cell empty" />;
-            const items = byDate[c.key] || [];
-            const isToday = c.key === todayKey;
-            const isPast = c.key < todayKey;
-            return (
-              <div key={i} className={"cal-cell" + (isToday ? " today" : "") + (isPast ? " past" : "")}>
-                <div className="cal-daynum">{c.day}</div>
-                {items.map((e, j) => (
-                  <Link key={j} href={`/projects/${e.id}`} className={"cal-item " + e.type} title={`${e.name} — ${e.title}`}>{e.type === "due" ? "⏰ " : "📞 "}{e.name}</Link>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <FollowUpCalendar cells={cells} itemsByDate={itemsByDate} todayKey={todayKey} canEdit={isAdmin} />
     </div>
   );
 }
