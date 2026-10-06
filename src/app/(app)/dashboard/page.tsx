@@ -20,6 +20,7 @@ export default async function DashboardPage() {
   const weighted = active.reduce((s, p) => s + oppValue(p) * (p.closingPct / 100), 0);
   const sold = projects.filter((p) => p.stage === "SOLD");
   const soldVal = sold.reduce((s, p) => s + oppValue(p), 0);
+  const soldSorted = sold.slice().sort((a, b) => oppValue(b) - oppValue(a));
 
   const allQuotes = projects.flatMap((p) => p.quotes);
   const wonQ = allQuotes.filter((q) => q.status === "WON").reduce((s, q) => s + q.value, 0);
@@ -210,6 +211,30 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      <details className="card sold-fold" style={{ marginTop: 16 }}>
+        <summary>
+          <span>Sold <span className="muted" style={{ fontWeight: 400 }}>— closed won, click to open</span></span>
+          <span className="pill-note">{sold.length} · {fmtK(soldVal)}</span>
+        </summary>
+        <div style={{ marginTop: 12 }}>
+          {soldSorted.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>No sold opportunities yet.</p>
+          ) : (
+            soldSorted.map((p) => (
+              <div className="focus-row" key={p.id}>
+                <Link className="focus-main" href={`/projects/${p.id}`}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{p.name} <span className="muted" style={{ fontWeight: 400 }}>#{p.number}</span></div>
+                    <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · {p.ownerRep || "—"}</div>
+                  </div>
+                </Link>
+                <div style={{ textAlign: "right", fontWeight: 700 }}>{fmtK(oppValue(p))}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </details>
     </div>
   );
 }

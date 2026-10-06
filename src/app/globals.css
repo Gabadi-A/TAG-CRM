@@ -145,6 +145,11 @@ tbody tr:hover{background:var(--cream);cursor:pointer}
 .pin.readonly:hover{background:none}
 .curated-badge{background:#fef3dc;border:1px solid #f0d9a8;color:#8a5a00;border-radius:20px;padding:3px 11px;font-size:11.5px;font-weight:700}
 .tag-nq{background:#fff4e0;border:1px solid #e4b55a;color:#8a5a00;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+details.sold-fold>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:15px;font-weight:700;list-style:none}
+details.sold-fold>summary::-webkit-details-marker{display:none}
+details.sold-fold>summary::before{content:"▸";color:var(--ink-2);font-weight:400;margin-right:6px;display:inline-block;transition:transform .15s}
+details.sold-fold[open]>summary::before{transform:rotate(90deg)}
+details.sold-fold>summary>span:first-child{flex:1}
 .info-banner{background:#eef4ec;border:1px solid #cfe2c9;color:#2f5528;border-radius:11px;padding:11px 15px;font-size:13px;margin-bottom:16px;line-height:1.5}
 /* contractor scoreboard mini-stats */
 .mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
