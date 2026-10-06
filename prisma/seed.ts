@@ -125,11 +125,16 @@ const TEAM = [
 
 async function main() {
   // Runs on every deploy (safe + idempotent): a decided deal has a fixed probability.
+  // Any open opportunity sitting at 100% is won — move it to Sold so it can be closed out.
+  const promoted = await prisma.project.updateMany({
+    where: { closingPct: { gte: 100 }, stage: { notIn: ["SOLD" as never, "DEAD" as never] } },
+    data: { stage: "SOLD" as never },
+  });
   const sold = await prisma.project.updateMany({ where: { stage: "SOLD" as never }, data: { closingPct: 100 } });
   const dead = await prisma.project.updateMany({ where: { stage: "DEAD" as never }, data: { closingPct: 0 } });
   await prisma.quote.updateMany({ where: { project: { stage: "SOLD" as never } }, data: { status: "WON" as never } });
   await prisma.quote.updateMany({ where: { project: { stage: "DEAD" as never } }, data: { status: "LOST" as never } });
-  console.log(`Normalized decided deals: ${sold.count} sold → 100%/Won, ${dead.count} dead → 0%/Lost.`);
+  console.log(`Normalized decided deals: ${promoted.count} at 100% → Sold, ${sold.count} sold → 100%/Won, ${dead.count} dead → 0%/Lost.`);
 
   // Only seed an empty database — protects live data from being reset on future deploys.
   const existingUsers = await prisma.user.count();
