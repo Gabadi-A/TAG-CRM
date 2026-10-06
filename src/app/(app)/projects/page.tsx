@@ -115,6 +115,18 @@ export default async function ProjectsPage({
     <div className="section">
       <h1 className="page">Opportunities</h1>
       <p className="page-sub">The master list — every opportunity and its quotes in one place. Click any column heading to sort it — click again to flip the order. Star an opportunity to pin it to the team&apos;s focus board.</p>
+      {soldRows.length > 0 && (
+        <details className="card sold-fold" style={{ marginBottom: 14 }}>
+          <summary>
+            <span>Sold <span className="muted" style={{ fontWeight: 400 }}>— closed won, click to open</span></span>
+            <span className="pill-note">{soldRows.length} · {fmt(soldTotal)}</span>
+          </summary>
+          <div className="table-wrap" style={{ marginTop: 12 }}><table>
+            <thead>{headRow}</thead>
+            <tbody>{soldRows.map(renderRow)}</tbody>
+          </table></div>
+        </details>
+      )}
       {notQuoted > 0 && (
         <div className="banner" style={{ background: "#fff4e0", borderColor: "#e4b55a" }}>
           ⚠ {notQuoted} active {notQuoted === 1 ? "opportunity has" : "opportunities have"} no quote yet.{" "}
@@ -148,19 +160,6 @@ export default async function ProjectsPage({
           )}
         </tbody>
       </table></div>
-
-      {soldRows.length > 0 && (
-        <details className="card sold-fold" style={{ marginTop: 16 }}>
-          <summary>
-            <span>Sold <span className="muted" style={{ fontWeight: 400 }}>— closed won, click to open</span></span>
-            <span className="pill-note">{soldRows.length} · {fmt(soldTotal)}</span>
-          </summary>
-          <div className="table-wrap" style={{ marginTop: 12 }}><table>
-            <thead>{headRow}</thead>
-            <tbody>{soldRows.map(renderRow)}</tbody>
-          </table></div>
-        </details>
-      )}
     </div>
   );
 }
