@@ -53,6 +53,37 @@ export default async function ProjectsPage({
     return b.val - a.val; // tiebreak: higher value first
   });
 
+  const liveRows = mapped.filter((m) => m.p.stage !== "SOLD");
+  const soldRows = mapped.filter((m) => m.p.stage === "SOLD");
+  const soldTotal = soldRows.reduce((s, m) => s + m.val, 0);
+
+  const renderRow = ({ p }: (typeof mapped)[number]) => {
+    const won = p.quotes.filter((x) => x.status === "WON").length;
+    const lost = p.quotes.filter((x) => x.status === "LOST").length;
+    return (
+      <tr key={p.id} className="rowlink">
+        <td style={{ textAlign: "center" }}>
+          {isAdmin ? (
+            <form action={toggleFocus}>
+              <input type="hidden" name="id" value={p.id} />
+              <button className={"pin " + (p.focus ? "on" : "")} aria-label="Toggle team-focus pin" title={p.focus ? "Unpin from team focus" : "Pin to team focus"}>{p.focus ? "★" : "☆"}</button>
+            </form>
+          ) : (
+            <span className={"pin readonly " + (p.focus ? "on" : "")}>{p.focus ? "★" : ""}</span>
+          )}
+        </td>
+        <td className="muted"><Link href={`/projects/${p.id}`}>{p.number}</Link></td>
+        <td style={{ fontWeight: 600 }}><Link href={`/projects/${p.id}`}>{p.name}</Link></td>
+        <td>{p.contractor?.name || "—"}</td>
+        <td>{p.ownerRep || "—"}</td>
+        <td><span className="pill-note">{STAGE_LABEL[p.stage]}</span></td>
+        <td className="num-cell">{p.quotes.length === 0 ? <span className="tag-nq">Not quoted</span> : <>{p.quotes.length}{won > 0 && <span style={{ color: "#1c6b1c" }}> ·{won}W</span>}{lost > 0 && <span style={{ color: "#a52222" }}> ·{lost}L</span>}</>}</td>
+        <td className="num-cell"><span className="pct" style={{ justifyContent: "flex-end" }}><span className="dot" style={{ background: pctColor(p.closingPct) }} />{p.closingPct}%</span></td>
+        <td className="num-cell">{fmt(oppValue(p) || p.value)}</td>
+      </tr>
+    );
+  };
+
   const numericCols = ["num", "quotes", "closing", "val"];
   const th = (k: string, label: string, right = false) => {
     const active = sort === k;
@@ -69,6 +100,14 @@ export default async function ProjectsPage({
       </th>
     );
   };
+
+  const headRow = (
+    <tr>
+      <th style={{ width: 32, textAlign: "center", color: "#c9a24a" }} title="Pinned to team focus">★</th>
+      {th("num", "#")}{th("name", "Project")}{th("gc", "Contractor")}{th("resp", "Owner")}{th("stage", "Stage")}
+      {th("quotes", "Quotes", true)}{th("closing", "Close %", true)}{th("val", "Value", true)}
+    </tr>
+  );
 
   const notQuoted = projects.filter((p) => p.quotes.length === 0 && p.stage !== "DEAD" && p.stage !== "SOLD").length;
 
@@ -96,46 +135,32 @@ export default async function ProjectsPage({
           <option value="yes">Has a quote</option>
         </select>
         <button className="btn ghost" type="submit">Filter</button>
-        <span className="pill-note">{mapped.length} opportunities</span>
+        <span className="pill-note">{liveRows.length} active{soldRows.length ? ` · ${soldRows.length} sold` : ""}</span>
         {isAdmin && <Link href="/projects/new" className="btn" style={{ marginLeft: "auto" }}>+ New opportunity</Link>}
       </form>
       <div className="table-wrap"><table>
-        <thead>
-          <tr>
-            <th style={{ width: 32, textAlign: "center", color: "#c9a24a" }} title="Pinned to team focus">★</th>
-            {th("num", "#")}{th("name", "Project")}{th("gc", "Contractor")}{th("resp", "Owner")}{th("stage", "Stage")}
-            {th("quotes", "Quotes", true)}{th("closing", "Close %", true)}{th("val", "Value", true)}
-          </tr>
-        </thead>
+        <thead>{headRow}</thead>
         <tbody>
-          {mapped.map(({ p }) => {
-            const won = p.quotes.filter((x) => x.status === "WON").length;
-            const lost = p.quotes.filter((x) => x.status === "LOST").length;
-            return (
-              <tr key={p.id} className="rowlink">
-                <td style={{ textAlign: "center" }}>
-                  {isAdmin ? (
-                    <form action={toggleFocus}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <button className={"pin " + (p.focus ? "on" : "")} aria-label="Toggle team-focus pin" title={p.focus ? "Unpin from team focus" : "Pin to team focus"}>{p.focus ? "★" : "☆"}</button>
-                    </form>
-                  ) : (
-                    <span className={"pin readonly " + (p.focus ? "on" : "")}>{p.focus ? "★" : ""}</span>
-                  )}
-                </td>
-                <td className="muted"><Link href={`/projects/${p.id}`}>{p.number}</Link></td>
-                <td style={{ fontWeight: 600 }}><Link href={`/projects/${p.id}`}>{p.name}</Link></td>
-                <td>{p.contractor?.name || "—"}</td>
-                <td>{p.ownerRep || "—"}</td>
-                <td><span className="pill-note">{STAGE_LABEL[p.stage]}</span></td>
-                <td className="num-cell">{p.quotes.length === 0 ? <span className="tag-nq">Not quoted</span> : <>{p.quotes.length}{won > 0 && <span style={{ color: "#1c6b1c" }}> ·{won}W</span>}{lost > 0 && <span style={{ color: "#a52222" }}> ·{lost}L</span>}</>}</td>
-                <td className="num-cell"><span className="pct" style={{ justifyContent: "flex-end" }}><span className="dot" style={{ background: pctColor(p.closingPct) }} />{p.closingPct}%</span></td>
-                <td className="num-cell">{fmt(oppValue(p) || p.value)}</td>
-              </tr>
-            );
-          })}
+          {liveRows.length === 0 ? (
+            <tr><td colSpan={9} className="muted" style={{ padding: 16 }}>No active opportunities match.</td></tr>
+          ) : (
+            liveRows.map(renderRow)
+          )}
         </tbody>
       </table></div>
+
+      {soldRows.length > 0 && (
+        <details className="card sold-fold" style={{ marginTop: 16 }}>
+          <summary>
+            <span>Sold <span className="muted" style={{ fontWeight: 400 }}>— closed won, click to open</span></span>
+            <span className="pill-note">{soldRows.length} · {fmt(soldTotal)}</span>
+          </summary>
+          <div className="table-wrap" style={{ marginTop: 12 }}><table>
+            <thead>{headRow}</thead>
+            <tbody>{soldRows.map(renderRow)}</tbody>
+          </table></div>
+        </details>
+      )}
     </div>
   );
 }
