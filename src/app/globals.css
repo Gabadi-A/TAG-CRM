@@ -145,6 +145,11 @@ tbody tr:hover{background:var(--cream);cursor:pointer}
 .focus-main{flex:1;display:grid;grid-template-columns:78px 1fr 150px;align-items:center;gap:12px}
 .close-badge{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-variant-numeric:tabular-nums;font-size:16px}
 .close-badge .dot{width:9px;height:9px;border-radius:50%}
+.focus-plan{flex-basis:100%;margin-top:2px}
+.focus-plan>summary{list-style:none;cursor:pointer;font-size:12px;color:var(--muted);display:inline-flex;max-width:100%}
+.focus-plan>summary::-webkit-details-marker{display:none}
+.focus-plan>summary:hover{color:var(--ink-2)}
+.fp-note{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pin{background:none;border:0;cursor:pointer;font-size:17px;line-height:1;padding:2px 5px;color:var(--muted);border-radius:6px}
 .pin.on{color:#dd9a2b}
 .pin:hover{color:#dd9a2b;background:var(--tan-lt)}

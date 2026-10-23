@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 type QuoteLite = { value: number; status: string; trade: string };
 const oppValue = (p: { quotes: QuoteLite[] }) => p.quotes.reduce((s, q) => s + (q.value || 0), 0);
 const inputStyle = {
-  border: "1px solid var(--line-2)", borderRadius: 9, padding: "7px 9px",
+  border: "1px solid var(--line-2)", borderRadius: 9, padding: "6px 9px",
   fontSize: 13, fontFamily: "inherit", background: "var(--paper)",
 } as const;
 
@@ -108,9 +108,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <h3 style={{ margin: 0 }}>Where to focus</h3>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {curated && <span className="curated-badge">★ Curated · {pinned.length}</span>}
-            <span className="muted" style={{ fontSize: 12 }}>Sort:</span>
+            <span className="muted" style={{ fontSize: 12 }}>Sort</span>
             <Link href="/dashboard" className={"pill-note" + (focus !== "due" ? " on" : "")}>Close %</Link>
-            <Link href="/dashboard?focus=due" className={"pill-note" + (focus === "due" ? " on" : "")}>Due date</Link>
+            <Link href="/dashboard?focus=due" className={"pill-note" + (focus === "due" ? " on" : "")}>Due</Link>
           </div>
         </div>
         <p className="h-sub" style={{ marginTop: 6 }}>
@@ -123,7 +123,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           const dd = p.dueDate ? new Date(p.dueDate) : null;
           const dueStr = dd ? dd.toISOString().slice(0, 10) : "";
           const ddDays = dd ? Math.round((new Date(dd).setHours(0, 0, 0, 0) - todayMid.getTime()) / 86400000) : null;
-          const dueColor = ddDays == null ? "var(--muted)" : ddDays < 0 ? "#c0392b" : ddDays <= 3 ? "#c0392b" : "var(--ink-2)";
+          const dueColor = ddDays != null && ddDays <= 3 ? "#c0392b" : "var(--ink-2)";
           const dueText = ddDays == null ? "" : ddDays < 0 ? `due ${-ddDays}d ago` : ddDays === 0 ? "due today" : `due in ${ddDays}d`;
           return (
             <div className="focus-row" key={p.id} style={{ flexWrap: "wrap" }}>
@@ -134,7 +134,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <span>
                   <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    {p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · {p.lastContact ? daysSince(p.lastContact) + "d since contact" : "no email logged"}
+                    {p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]}
                     {dd && <> · <span style={{ color: dueColor, fontWeight: 700 }}>{dueText}</span></>}
                   </div>
                 </span>
@@ -148,23 +148,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               ) : (
                 <span className={"pin readonly " + (p.focus ? "on" : "")}>{p.focus ? "★" : ""}</span>
               )}
-              <div style={{ flexBasis: "100%" }}>
-                {isAdmin ? (
-                  <form action={setFocusPlan} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 2 }}>
+              {isAdmin ? (
+                <details className="focus-plan">
+                  <summary>{p.nextStep ? <span className="fp-note">📝 {p.nextStep}</span> : <span className="muted">+ note / due date</span>}</summary>
+                  <form action={setFocusPlan} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
                     <input type="hidden" name="id" value={p.id} />
-                    <input name="nextStep" defaultValue={p.nextStep || ""} placeholder="What's next — note for the team" style={{ ...inputStyle, flex: "1 1 260px" }} />
-                    <label className="muted" style={{ fontSize: 12 }}>Due</label>
+                    <input name="nextStep" defaultValue={p.nextStep || ""} placeholder="What's next…" style={{ ...inputStyle, flex: "1 1 240px" }} />
                     <input name="dueDate" type="date" defaultValue={dueStr} style={inputStyle} />
                     <button className="btn ghost" type="submit">Save</button>
                   </form>
-                ) : (
-                  (p.nextStep || dd) && (
-                    <div className="note-box" style={{ marginTop: 6, fontSize: 12.5 }}>
-                      {dd && <b style={{ color: dueColor }}>Due {dueStr}. </b>}{p.nextStep && <><b>Next:</b> {p.nextStep}</>}
-                    </div>
-                  )
-                )}
-              </div>
+                </details>
+              ) : (
+                p.nextStep && <div className="fp-note" style={{ flexBasis: "100%" }}>📝 {p.nextStep}</div>
+              )}
             </div>
           );
         })}
