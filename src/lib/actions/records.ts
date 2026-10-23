@@ -104,6 +104,20 @@ export async function setNextStep(formData: FormData) {
   refreshOpps(id);
 }
 
+/** Dashboard "Where to focus": save the what's-next note + the due date for an opportunity. */
+export async function setFocusPlan(formData: FormData) {
+  await requireAdmin();
+  const id = s(formData, "id");
+  const date = s(formData, "dueDate");
+  const p = await prisma.project.update({
+    where: { id },
+    data: { nextStep: s(formData, "nextStep") || null, dueDate: date ? new Date(date) : null },
+  });
+  await logActivity("Updated focus plan", p.name);
+  refreshOpps(id);
+  revalidatePath("/calendar");
+}
+
 /* ---------------- Contractors ---------------- */
 export async function createContractor(_prev: string | undefined, formData: FormData): Promise<string | undefined> {
   await requireAdmin();

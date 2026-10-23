@@ -3,13 +3,19 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { STAGES, STAGE_LABEL, fmtK, fmt, pctColor, daysSince, TRADE_LABEL, isOpenQuote } from "@/lib/format";
 import { toggleFocus } from "@/lib/actions/projects";
+import { setFocusPlan } from "@/lib/actions/records";
 
 export const dynamic = "force-dynamic";
 
 type QuoteLite = { value: number; status: string; trade: string };
 const oppValue = (p: { quotes: QuoteLite[] }) => p.quotes.reduce((s, q) => s + (q.value || 0), 0);
+const inputStyle = {
+  border: "1px solid var(--line-2)", borderRadius: 9, padding: "7px 9px",
+  fontSize: 13, fontFamily: "inherit", background: "var(--paper)",
+} as const;
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ focus?: string }> }) {
+  const { focus = "close" } = await searchParams;
   const session = await auth();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "ADMIN";
 
@@ -59,8 +65,14 @@ export default async function DashboardPage() {
   type Proj = (typeof projects)[number];
   const byPriority = (a: Proj, b: Proj) =>
     b.closingPct - a.closingPct || oppValue(b) - oppValue(a);
-  let focusList = (curated ? pinned : active).slice().sort(byPriority);
-  if (!curated) focusList = focusList.slice(0, 6);
+  const byDue = (a: Proj, b: Proj) => {
+    const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+    const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+    return da - db || byPriority(a, b);
+  };
+  // Membership = curated pins, else top-6 by closing %. Sort choice only reorders what's shown.
+  let focusList = curated ? pinned.slice() : active.slice().sort(byPriority).slice(0, 6);
+  focusList = focusList.sort(focus === "due" ? byDue : byPriority);
 
   const followUps = active
     .filter((p) => p.followUpDate != null)
@@ -92,9 +104,14 @@ export default async function DashboardPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <h3 style={{ margin: 0 }}>Where to focus</h3>
-          {curated && <span className="curated-badge">★ Curated for the team · {pinned.length}</span>}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {curated && <span className="curated-badge">★ Curated · {pinned.length}</span>}
+            <span className="muted" style={{ fontSize: 12 }}>Sort:</span>
+            <Link href="/dashboard" className={"pill-note" + (focus !== "due" ? " on" : "")}>Close %</Link>
+            <Link href="/dashboard?focus=due" className={"pill-note" + (focus === "due" ? " on" : "")}>Due date</Link>
+          </div>
         </div>
         <p className="h-sub" style={{ marginTop: 6 }}>
           {curated
@@ -103,15 +120,23 @@ export default async function DashboardPage() {
         </p>
         {focusList.map((p) => {
           const w = oppValue(p) * (p.closingPct / 100);
+          const dd = p.dueDate ? new Date(p.dueDate) : null;
+          const dueStr = dd ? dd.toISOString().slice(0, 10) : "";
+          const ddDays = dd ? Math.round((new Date(dd).setHours(0, 0, 0, 0) - todayMid.getTime()) / 86400000) : null;
+          const dueColor = ddDays == null ? "var(--muted)" : ddDays < 0 ? "#c0392b" : ddDays <= 3 ? "#c0392b" : "var(--ink-2)";
+          const dueText = ddDays == null ? "" : ddDays < 0 ? `due ${-ddDays}d ago` : ddDays === 0 ? "due today" : `due in ${ddDays}d`;
           return (
-            <div className="focus-row" key={p.id}>
+            <div className="focus-row" key={p.id} style={{ flexWrap: "wrap" }}>
               <Link className="focus-main" href={`/projects/${p.id}`}>
                 <span className="close-badge" style={{ color: pctColor(p.closingPct) }}>
                   <span className="dot" style={{ background: pctColor(p.closingPct) }} />{p.closingPct}%
                 </span>
                 <span>
                   <span style={{ fontWeight: 700 }}>{p.name}</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>#{p.number}</span>
-                  <div className="muted" style={{ fontSize: 12 }}>{p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · {p.lastContact ? daysSince(p.lastContact) + "d since contact" : "no email logged"}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {p.contractor?.name || "—"} · {STAGE_LABEL[p.stage]} · {p.lastContact ? daysSince(p.lastContact) + "d since contact" : "no email logged"}
+                    {dd && <> · <span style={{ color: dueColor, fontWeight: 700 }}>{dueText}</span></>}
+                  </div>
                 </span>
                 <span className="num-cell" style={{ fontWeight: 700 }}>{fmtK(oppValue(p))}<div className="muted" style={{ fontSize: 11, fontWeight: 600 }}>{fmtK(w)} weighted</div></span>
               </Link>
@@ -123,6 +148,23 @@ export default async function DashboardPage() {
               ) : (
                 <span className={"pin readonly " + (p.focus ? "on" : "")}>{p.focus ? "★" : ""}</span>
               )}
+              <div style={{ flexBasis: "100%" }}>
+                {isAdmin ? (
+                  <form action={setFocusPlan} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 2 }}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <input name="nextStep" defaultValue={p.nextStep || ""} placeholder="What's next — note for the team" style={{ ...inputStyle, flex: "1 1 260px" }} />
+                    <label className="muted" style={{ fontSize: 12 }}>Due</label>
+                    <input name="dueDate" type="date" defaultValue={dueStr} style={inputStyle} />
+                    <button className="btn ghost" type="submit">Save</button>
+                  </form>
+                ) : (
+                  (p.nextStep || dd) && (
+                    <div className="note-box" style={{ marginTop: 6, fontSize: 12.5 }}>
+                      {dd && <b style={{ color: dueColor }}>Due {dueStr}. </b>}{p.nextStep && <><b>Next:</b> {p.nextStep}</>}
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           );
         })}
